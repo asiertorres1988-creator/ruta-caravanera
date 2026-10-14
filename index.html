@@ -1,0 +1,786 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1730">
+<title>Ruta Caravanera</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: full-bleed top-down autovía on canvas; HUD styled as Spanish blue motorway signs; menus as sign panels over the moving road */
+html{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*,*::before,*::after{box-sizing:inherit}
+[hidden]{display:none!important}
+:root{
+  --sign:#1b4fa0;
+  --sign-deep:#0e2c63;
+  --paper:#f6f7f2;
+  --ochre:#e8b63a;
+  --alert:#e2483d;
+  --ink:#0b1730;
+  --muted:#b9c6e0;
+  --display:'Bungee','Arial Black',Impact,sans-serif;
+  --body:'Barlow Condensed','Arial Narrow','Roboto Condensed',system-ui,sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%;margin:0;overflow:hidden;overscroll-behavior:none;background:var(--ink);color:var(--paper)}
+body{font-family:var(--body);font-size:17px;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+#app{position:relative;width:100%;height:100%;overflow:hidden;touch-action:none}
+#road{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+/* HUD */
+#hud{position:absolute;top:0;left:0;right:0;display:flex;gap:8px;align-items:stretch;
+  padding-top:8px;padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));pointer-events:none}
+.sign{background:var(--sign);color:var(--paper);border-radius:7px;padding:5px 10px 6px;
+  box-shadow:inset 0 0 0 2px var(--sign),inset 0 0 0 3.5px var(--paper),0 3px 0 rgba(0,0,0,.25);
+  display:flex;flex-direction:column;justify-content:center;min-width:0}
+.sign .lbl{font-weight:600;font-size:11px;letter-spacing:.12em;text-transform:uppercase;opacity:.85}
+.sign .val{font-weight:700;font-size:24px;line-height:1;font-variant-numeric:tabular-nums}
+.sign .sub{font-weight:500;font-size:13px;opacity:.9;font-variant-numeric:tabular-nums}
+#sKm{flex:0 0 auto}
+#sFuel{flex:1 1 auto}
+.gauge{height:10px;border-radius:5px;background:var(--sign-deep);box-shadow:inset 0 0 0 1.5px rgba(246,247,242,.6);overflow:hidden;margin:4px 0 3px}
+.gauge i{display:block;height:100%;width:100%;background:var(--paper);transform-origin:left;transition:background .2s}
+.gauge.low i{background:var(--alert)}
+#sHits{flex:0 0 auto;align-items:center}
+.dents{display:flex;gap:4px;margin-top:4px}
+.dents b{width:11px;height:11px;border-radius:50%;background:var(--paper)}
+.dents b.off{background:transparent;box-shadow:inset 0 0 0 2px var(--alert)}
+#pause{pointer-events:auto;flex:0 0 auto;width:44px;border:0;cursor:pointer;font:700 15px var(--body);letter-spacing:.06em}
+#pause:focus-visible,.pick:focus-visible,.btn:focus-visible{outline:3px solid var(--ochre);outline-offset:2px}
+
+#gust{position:absolute;left:50%;top:84px;transform:translateX(-50%);background:var(--ochre);color:var(--ink);
+  font:700 16px var(--body);letter-spacing:.1em;text-transform:uppercase;padding:6px 14px;border-radius:6px;
+  box-shadow:inset 0 0 0 2px var(--ochre),inset 0 0 0 3.5px var(--ink);white-space:nowrap;pointer-events:none}
+
+/* Overlays */
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;overflow-y:auto;
+  background:rgba(11,23,48,.55);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);
+  padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.panel{width:100%;max-width:440px;margin:auto;background:var(--sign);border-radius:14px;padding:18px 16px 16px;
+  box-shadow:inset 0 0 0 3px var(--sign),inset 0 0 0 5.5px var(--paper),0 10px 30px rgba(0,0,0,.4);
+  display:flex;flex-direction:column;gap:14px}
+.tag{display:inline-flex;align-self:flex-start;gap:8px;align-items:center;font-weight:700;font-size:13px;letter-spacing:.14em;text-transform:uppercase}
+.tag .road{background:var(--alert);color:var(--paper);padding:1px 7px;border-radius:4px;letter-spacing:.04em}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(34px,11vw,48px);line-height:.95;margin:0;text-wrap:balance;letter-spacing:.01em}
+h1 em{font-style:normal;color:var(--ochre)}
+h2{font-family:var(--display);font-weight:400;font-size:30px;line-height:1;margin:0;text-wrap:balance}
+.lede{margin:0;font-size:18px;line-height:1.3;color:var(--paper)}
+.picks{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pick{all:unset;box-sizing:border-box;cursor:pointer;border-radius:10px;padding:10px 9px 10px;background:var(--sign-deep);
+  display:flex;flex-direction:column;gap:6px;min-width:0;box-shadow:inset 0 0 0 2px rgba(246,247,242,.18);transition:box-shadow .15s,transform .15s}
+.pick[aria-pressed="true"]{box-shadow:inset 0 0 0 3px var(--ochre);transform:translateY(-2px)}
+.pick canvas{width:100%;height:58px;display:block}
+.pick .car{font-weight:700;font-size:17px;line-height:1.05}
+.pick .van{font-weight:500;font-size:13.5px;line-height:1.15;color:var(--muted)}
+.stats{display:grid;grid-template-columns:auto 1fr;gap:3px 7px;align-items:center;margin-top:2px}
+.stats span{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.bar{height:6px;border-radius:3px;background:rgba(246,247,242,.15);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--paper)}
+.pick[aria-pressed="true"] .bar i{background:var(--ochre)}
+.note{font-size:13px;line-height:1.2;color:var(--muted)}
+.btn{all:unset;box-sizing:border-box;cursor:pointer;text-align:center;font-family:var(--display);font-size:22px;padding:14px 16px;border-radius:10px;
+  background:var(--ochre);color:var(--ink);box-shadow:0 4px 0 #9b7414;transition:transform .08s}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 #9b7414}
+.btn.ghost{background:transparent;color:var(--paper);box-shadow:inset 0 0 0 2px rgba(246,247,242,.6);font-size:17px;padding:11px}
+.how{margin:0;font-size:15px;line-height:1.35;color:var(--muted)}
+.how b{color:var(--paper);font-weight:600}
+.best{margin:0;font-weight:600;font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-variant-numeric:tabular-nums}
+.results{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.results div{background:var(--sign-deep);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:2px}
+.results span{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.results b{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
+.newrec{color:var(--ochre);font-weight:700;letter-spacing:.1em;text-transform:uppercase;font-size:14px;margin:0}
+.row{display:flex;flex-direction:column;gap:10px}
+@media (prefers-reduced-motion:reduce){.pick,.btn,.gauge i{transition:none}}
+</style>
+
+</head>
+<body>
+<div id="app">
+  <canvas id="road" aria-label="Carretera del juego"></canvas>
+
+  <div id="hud" hidden>
+    <div class="sign" id="sKm"><span class="lbl">Km</span><span class="val" id="km">0,0</span><span class="sub" id="tokens">0 fichas</span></div>
+    <div class="sign" id="sFuel"><span class="lbl">Gasoil</span><div class="gauge" id="gauge"><i id="fuelBar"></i></div><span class="sub" id="speed">80 km/h</span></div>
+    <div class="sign" id="sHits"><span class="lbl">Golpes</span><div class="dents" id="dents"><b></b><b></b><b></b></div></div>
+    <button class="sign" id="pause" aria-label="Pausa">II</button>
+  </div>
+  <div id="gust" hidden>Viento lateral</div>
+
+  <div class="overlay" id="menu">
+    <div class="panel">
+      <div class="tag"><span class="road">A-7</span> Dirección camping</div>
+      <h1>Ruta<br><em>Caravanera</em></h1>
+      <p class="lede">Elige tu conjunto y llega lo más lejos posible por la autovía sin quedarte tirado.</p>
+      <div class="picks">
+        <button class="pick" data-rig="c5" aria-pressed="true">
+          <canvas data-preview="c5"></canvas>
+          <span class="car">Citroën C5 · 2003</span>
+          <span class="van">Gris plata + Knaus Sport 500 QDK · 2008</span>
+          <span class="stats" data-stats="c5"></span>
+          <span class="note">Suspensión hidroneumática: la caravana se calma antes.</span>
+        </button>
+        <button class="pick" data-rig="sharan" aria-pressed="false">
+          <canvas data-preview="sharan"></canvas>
+          <span class="car">VW Sharan · 2018</span>
+          <span class="van">Blanca + Fendt Saphir 560 TFK · 2007</span>
+          <span class="stats" data-stats="sharan"></span>
+          <span class="note">Depósito grande, pero la Fendt pesa y culea más.</span>
+        </button>
+      </div>
+      <button class="btn" id="go">Arrancar</button>
+      <p class="how"><b>Arrastra el dedo</b> para cambiar de carril. Coge <b>bidones de gasoil</b> y <b>fichas de camping</b>. Ojo con las <b>rachas de viento</b>: la caravana se mueve y también puede golpear.</p>
+      <p class="best" id="bestMenu">Récord: 0 puntos</p>
+    </div>
+  </div>
+
+  <div class="overlay" id="over" hidden>
+    <div class="panel">
+      <div class="tag"><span class="road">A-7</span> <span id="overTag">Fin del viaje</span></div>
+      <h2 id="overTitle">¡Sin gasoil!</h2>
+      <p class="lede" id="overText">Te has quedado en el arcén.</p>
+      <div class="results">
+        <div><span>Km</span><b id="rKm">0</b></div>
+        <div><span>Fichas</span><b id="rTok">0</b></div>
+        <div><span>Puntos</span><b id="rPts">0</b></div>
+      </div>
+      <p class="newrec" id="newRec" hidden>Nuevo récord</p>
+      <p class="best" id="bestOver">Récord: 0 puntos</p>
+      <div class="row">
+        <button class="btn" id="again">Otra vez</button>
+        <button class="btn ghost" id="change">Cambiar de conjunto</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="paused" hidden>
+    <div class="panel">
+      <h2>Parada técnica</h2>
+      <p class="lede">El juego está en pausa.</p>
+      <div class="row">
+        <button class="btn" id="resume">Seguir</button>
+        <button class="btn ghost" id="quit">Volver al inicio</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const rnd = (a,b) => a + Math.random()*(b-a);
+const pick = arr => arr[(Math.random()*arr.length)|0];
+const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- Conjuntos ---------- */
+const RIGS = {
+  c5: {
+    carColor:'#b9bec5', type:'sedan', carL:4.62, carW:1.78, rs:.41, re:.73,
+    vanL:5.0, vanW:2.25, scheme:{a:'#7d848c', b:'#c8323a'},
+    agility:1.0, stability:.85, tank:.8,
+    stats:{Manejo:.9, Estabilidad:.85, Depósito:.68}
+  },
+  sharan: {
+    carColor:'#eef0ee', type:'mpv', carL:4.85, carW:1.9, rs:.33, re:.9,
+    vanL:5.6, vanW:2.3, scheme:{a:'#ab8b57', b:'#5b4732'},
+    agility:.84, stability:.62, tank:1.0,
+    stats:{Manejo:.74, Estabilidad:.62, Depósito:.95}
+  }
+};
+let rigId = 'c5';
+try { const s = localStorage.getItem('rutacaravanera.rig'); if (s && RIGS[s]) rigId = s; } catch(e){}
+let rig = RIGS[rigId];
+
+/* ---------- Canvas ---------- */
+const cv = $('road'), ctx = cv.getContext('2d');
+let W=0, H=0, DPR=1, u=28, roadL=0, roadR=0, laneW=0, carFrontY=200;
+const LANES = 3;
+function resize(){
+  const r = cv.getBoundingClientRect();
+  DPR = Math.min(window.devicePixelRatio || 1, 3);
+  W = r.width; H = r.height;
+  cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  const roadW = Math.min(W - 2*Math.max(30, W*.085), 480);
+  roadL = (W - roadW)/2; roadR = roadL + roadW;
+  laneW = roadW / LANES;
+  u = Math.min(laneW/3.5, H/23);
+  carFrontY = Math.max(118, H*.29);
+  if (p) { p.x = clamp(p.x, minX(), maxX()); p.tx = clamp(p.tx, minX(), maxX()); }
+  drawPreviews();
+}
+const laneX = i => roadL + laneW*(i+.5);
+const minX = () => roadL + rig.vanW*u/2 + 3;
+const maxX = () => roadR - rig.vanW*u/2 - 3;
+
+/* ---------- Utilidades de dibujo ---------- */
+function rr(c,x,y,w,h,r){
+  r = Math.max(0, Math.min(r, w/2, h/2));
+  c.beginPath(); c.moveTo(x+r,y);
+  c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r);
+  c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath();
+}
+function shade(hex, amt){
+  const n = parseInt(hex.slice(1),16);
+  let r=n>>16, g=(n>>8)&255, b=n&255;
+  const t = amt<0 ? 0 : 255, k = Math.abs(amt);
+  r = Math.round(r+(t-r)*k); g = Math.round(g+(t-g)*k); b = Math.round(b+(t-b)*k);
+  return `rgb(${r},${g},${b})`;
+}
+// Coche visto desde arriba: frontal en y=0, trasera en y=l
+function drawCar(c, w, l, color, o){
+  const type = o.type || 'sedan', rs = o.rs || .4, re = o.re || .74;
+  c.fillStyle = 'rgba(0,0,0,.28)'; rr(c,-w/2+w*.1, l*.04, w, l, w*.3); c.fill();
+  c.fillStyle = shade(color,-.4);
+  rr(c,-w/2-w*.11, l*.29, w*.16, l*.045, 2); c.fill();
+  rr(c, w/2-w*.05, l*.29, w*.16, l*.045, 2); c.fill();
+  const g = c.createLinearGradient(-w/2,0,w/2,0);
+  g.addColorStop(0, shade(color,-.32)); g.addColorStop(.22, color);
+  g.addColorStop(.55, shade(color,.2)); g.addColorStop(1, shade(color,-.32));
+  c.fillStyle = g; rr(c,-w/2,0,w,l,w*.3); c.fill();
+  // capó: línea central
+  c.strokeStyle = 'rgba(0,0,0,.12)'; c.lineWidth = 1;
+  c.beginPath(); c.moveTo(-w*.22,l*.05); c.lineTo(-w*.28,l*.25); c.moveTo(w*.22,l*.05); c.lineTo(w*.28,l*.25); c.stroke();
+  // faros
+  c.fillStyle = '#fff4c8';
+  rr(c,-w*.43, l*.012, w*.25, l*.035, 3); c.fill();
+  rr(c, w*.18, l*.012, w*.25, l*.035, 3); c.fill();
+  // lunas laterales
+  c.fillStyle = '#1b2430';
+  rr(c,-w*.43, l*rs, w*.86, l*(re-rs), w*.16); c.fill();
+  // parabrisas
+  const ws = rs - (type==='mpv' ? .1 : .13);
+  c.beginPath();
+  c.moveTo(-w*.42, l*ws); c.quadraticCurveTo(0, l*(ws-.03), w*.42, l*ws);
+  c.lineTo(w*.37, l*rs+2); c.lineTo(-w*.37, l*rs+2); c.closePath(); c.fill();
+  // techo
+  c.fillStyle = shade(color,.12);
+  rr(c,-w*.36, l*rs, w*.72, l*(re-rs), w*.14); c.fill();
+  if (type === 'mpv'){
+    c.strokeStyle = shade(color,-.45); c.lineWidth = Math.max(1.5, w*.04);
+    c.beginPath(); c.moveTo(-w*.3,l*(rs+.04)); c.lineTo(-w*.3,l*(re-.03));
+    c.moveTo(w*.3,l*(rs+.04)); c.lineTo(w*.3,l*(re-.03)); c.stroke();
+  }
+  // luna trasera
+  c.fillStyle = '#1b2430';
+  const rw = type==='mpv' ? .05 : .09;
+  c.beginPath(); c.moveTo(-w*.37,l*re-1); c.lineTo(w*.37,l*re-1); c.lineTo(w*.4,l*(re+rw)); c.lineTo(-w*.4,l*(re+rw)); c.closePath(); c.fill();
+  // pilotos
+  c.fillStyle = '#c62f2a';
+  rr(c,-w*.46, l*.96, w*.22, l*.03, 2); c.fill();
+  rr(c, w*.24, l*.96, w*.22, l*.03, 2); c.fill();
+}
+// Caravana: enganche en (0,0), lanza hasta db, cuerpo de db a db+L
+function drawCaravan(c, Wd, L, db, sc){
+  c.strokeStyle = '#2a2d31'; c.lineWidth = Math.max(2, Wd*.05); c.lineCap = 'round';
+  c.beginPath(); c.moveTo(0,2); c.lineTo(-Wd*.28, db+2); c.moveTo(0,2); c.lineTo(Wd*.28, db+2); c.stroke();
+  c.fillStyle = '#e7e7e1'; rr(c,-Wd*.2, db*.42, Wd*.4, db*.5, 3); c.fill();
+  c.fillStyle = 'rgba(0,0,0,.28)'; rr(c,-Wd/2+Wd*.08, db+L*.03, Wd, L, Wd*.12); c.fill();
+  c.fillStyle = '#f4f4f0'; rr(c,-Wd/2, db, Wd, L, Wd*.12); c.fill();
+  // decoración lateral
+  c.fillStyle = sc.a;
+  c.fillRect(-Wd/2, db+L*.2, Wd*.06, L*.68); c.fillRect(Wd/2-Wd*.06, db+L*.2, Wd*.06, L*.68);
+  c.fillStyle = sc.b;
+  c.fillRect(-Wd/2+Wd*.065, db+L*.32, Wd*.025, L*.44); c.fillRect(Wd/2-Wd*.09, db+L*.32, Wd*.025, L*.44);
+  // ventana delantera
+  c.fillStyle = '#26323d'; rr(c,-Wd*.37, db+L*.012, Wd*.74, L*.045, 4); c.fill();
+  // juntas del techo
+  c.strokeStyle = 'rgba(0,0,0,.08)'; c.lineWidth = 1;
+  c.beginPath();
+  for (let k=1;k<4;k++){ const y = db + L*k/4; c.moveTo(-Wd*.44,y); c.lineTo(Wd*.44,y); }
+  c.stroke();
+  // claraboya
+  c.fillStyle = '#d9dcd7'; rr(c,-Wd*.27, db+L*.12, Wd*.54, L*.14, 5); c.fill();
+  c.fillStyle = '#7ea4ba'; rr(c,-Wd*.22, db+L*.135, Wd*.44, L*.11, 4); c.fill();
+  // aireadores
+  c.fillStyle = '#dcdcd6';
+  rr(c,-Wd*.12, db+L*.52, Wd*.24, L*.06, 3); c.fill();
+  rr(c,-Wd*.1, db+L*.77, Wd*.2, L*.05, 3); c.fill();
+  // pilotos
+  c.fillStyle = '#c62f2a';
+  c.fillRect(-Wd*.46, db+L-L*.025, Wd*.18, L*.018); c.fillRect(Wd*.28, db+L-L*.025, Wd*.18, L*.018);
+}
+function drawTruck(c, w, l, cab){
+  const cabL = 2.4*u;
+  c.fillStyle = 'rgba(0,0,0,.28)'; rr(c,-w/2+w*.1, l*.02, w, l, 6); c.fill();
+  c.fillStyle = '#dfe2dc'; rr(c,-w/2, cabL+u*.25, w, l-cabL-u*.25, 4); c.fill();
+  c.fillStyle = cab; c.fillRect(-w/2, cabL+u*.25, w*.07, l-cabL-u*.4); c.fillRect(w/2-w*.07, cabL+u*.25, w*.07, l-cabL-u*.4);
+  c.strokeStyle = 'rgba(0,0,0,.1)'; c.lineWidth = 1;
+  c.beginPath(); for (let y = cabL+u*1.5; y < l; y += u*1.4){ c.moveTo(-w*.42,y); c.lineTo(w*.42,y); } c.stroke();
+  const g = c.createLinearGradient(-w/2,0,w/2,0);
+  g.addColorStop(0, shade(cab,-.3)); g.addColorStop(.4, cab); g.addColorStop(1, shade(cab,-.3));
+  c.fillStyle = g; rr(c,-w*.47, 0, w*.94, cabL, w*.16); c.fill();
+  c.fillStyle = '#1b2430'; rr(c,-w*.42, cabL*.12, w*.84, cabL*.18, 3); c.fill();
+  c.fillStyle = shade(cab,.15); rr(c,-w*.38, cabL*.36, w*.76, cabL*.55, 5); c.fill();
+  c.fillStyle = '#fff4c8'; c.fillRect(-w*.44, 1, w*.16, 3); c.fillRect(w*.28, 1, w*.16, 3);
+}
+function drawFuel(c, x, y, s){
+  c.save(); c.translate(x,y); c.rotate(-.12);
+  c.fillStyle = 'rgba(0,0,0,.3)'; rr(c,-s*.4+3,-s*.5+4,s*.8,s,5); c.fill();
+  c.fillStyle = '#2e9a49'; rr(c,-s*.4,-s*.5,s*.8,s,5); c.fill();
+  c.fillStyle = '#1f6e33'; rr(c,-s*.28,-s*.62,s*.3,s*.18,3); c.fill();
+  c.fillStyle = '#f4d03f'; rr(c,s*.05,-s*.64,s*.14,s*.16,2); c.fill();
+  c.strokeStyle = '#1f6e33'; c.lineWidth = 2;
+  c.beginPath(); c.moveTo(-s*.28,-s*.3); c.lineTo(s*.28,s*.38); c.moveTo(s*.28,-s*.3); c.lineTo(-s*.28,s*.38); c.stroke();
+  c.restore();
+}
+// Ficha: señal azul de camping con tienda blanca
+function drawToken(c, x, y, r, t){
+  const sx = Math.abs(Math.cos(t*3));
+  c.save(); c.translate(x,y); c.scale(Math.max(.15,sx),1);
+  c.fillStyle = 'rgba(0,0,0,.3)'; c.beginPath(); c.arc(3,4,r,0,Math.PI*2); c.fill();
+  c.fillStyle = '#f6f7f2'; c.beginPath(); c.arc(0,0,r,0,Math.PI*2); c.fill();
+  c.fillStyle = '#1b4fa0'; c.beginPath(); c.arc(0,0,r*.84,0,Math.PI*2); c.fill();
+  c.fillStyle = '#f6f7f2';
+  c.beginPath(); c.moveTo(0,-r*.48); c.lineTo(r*.55,r*.4); c.lineTo(-r*.55,r*.4); c.closePath(); c.fill();
+  c.fillStyle = '#1b4fa0';
+  c.beginPath(); c.moveTo(0,-r*.05); c.lineTo(r*.16,r*.4); c.lineTo(-r*.16,r*.4); c.closePath(); c.fill();
+  c.restore();
+}
+function drawOlive(c, x, y, s){
+  c.fillStyle = 'rgba(60,45,10,.3)'; c.beginPath(); c.ellipse(x+s*.25, y+s*.3, s, s*.85, 0, 0, Math.PI*2); c.fill();
+  c.fillStyle = '#5f6f2b';
+  c.beginPath(); c.arc(x-s*.3,y,s*.6,0,Math.PI*2); c.arc(x+s*.35,y-s*.15,s*.55,0,Math.PI*2); c.arc(x,y+s*.35,s*.55,0,Math.PI*2); c.fill();
+  c.fillStyle = '#7e8f3c';
+  c.beginPath(); c.arc(x-s*.2,y-s*.15,s*.3,0,Math.PI*2); c.arc(x+s*.3,y-s*.25,s*.22,0,Math.PI*2); c.fill();
+}
+function drawKmPost(c, x, y, n){
+  const w = Math.max(16, u*.8), h = w*1.5;
+  c.fillStyle = 'rgba(0,0,0,.3)'; c.fillRect(x-w/2+3, y+3, w, h);
+  c.fillStyle = '#f6f7f2'; c.fillRect(x-w/2, y, w, h);
+  c.fillStyle = '#c8323a'; c.fillRect(x-w/2, y, w, h*.28);
+  c.fillStyle = '#0b1730'; c.font = `700 ${Math.round(w*.62)}px 'Barlow Condensed', sans-serif`;
+  c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(String(n), x, y+h*.64);
+}
+
+/* ---------- Estado ---------- */
+let state = 'menu';
+let p = null;
+let obs = [], items = [], deco = [], posts = [], pops = [], streaks = [];
+let speed = 72, km = 0, fuel = 100, tokens = 0, hits = 0, invuln = 0, shake = 0, penalty = 0;
+let spawnT = 0, nextFuelKm = 1, nextTokKm = .3, lastKmInt = 0, decoAcc = 0;
+let dashOff = 0, fieldOff = 0, railOff = 0, time = 0, graceT = 0;
+let gust = {phase:'idle', t:8, dir:1};
+let best = 0;
+try { best = parseInt(localStorage.getItem('rutacaravanera.best') || '0', 10) || 0; } catch(e){}
+
+function newPlayer(){
+  const x = laneX(1);
+  return {x, tx:x, vx:0, head:0, th:0, sway:0, swayV:0};
+}
+function resetRun(){
+  p = newPlayer();
+  obs = []; items = []; pops = []; streaks = []; posts = [];
+  speed = 72; km = 0; fuel = 100; tokens = 0; hits = 0; invuln = 0; shake = 0; penalty = 0;
+  spawnT = 1.6; nextFuelKm = .9; nextTokKm = .25; lastKmInt = 0; graceT = 1.6;
+  gust = {phase:'idle', t: rnd(7,11), dir:1};
+  renderDents(); $('gust').hidden = true;
+}
+
+/* ---------- Audio ---------- */
+let actx = null;
+function audioOn(){
+  try { if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume(); } catch(e){ actx = null; }
+}
+function beep(f, d, type='square', vol=.06, slide=0){
+  if (!actx) return;
+  try {
+    const t = actx.currentTime, o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, f+slide), t+d);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t+d);
+    o.connect(g).connect(actx.destination); o.start(t); o.stop(t+d+.02);
+  } catch(e){}
+}
+const sfx = {
+  token(){ beep(880,.08,'square',.05); setTimeout(()=>beep(1320,.1,'square',.05),70); },
+  fuel(){ beep(330,.18,'triangle',.08,330); },
+  hit(){ beep(160,.35,'sawtooth',.09,-120); },
+  gust(){ beep(220,.5,'sine',.04,-80); },
+  over(){ beep(392,.2,'triangle',.07); setTimeout(()=>beep(311,.2,'triangle',.07),180); setTimeout(()=>beep(233,.45,'triangle',.07),360); }
+};
+
+/* ---------- Spawns ---------- */
+const CAR_COLORS = ['#c0392b','#2d5d9f','#e9e7e0','#1f2024','#5f7a3a','#d98c2b','#6c6f76','#8a2f4f'];
+function laneBusy(lane, yTop, yBot){
+  const cx = laneX(lane);
+  for (const o of obs){ if (Math.abs(o.x-cx) < laneW*.6 && o.y < yBot && o.y+o.l > yTop) return true; }
+  for (const it of items){ if (Math.abs(it.x-cx) < laneW*.6 && it.y < yBot && it.y > yTop) return true; }
+  return false;
+}
+function freeLanes(yTop, yBot){ const r=[]; for (let i=0;i<LANES;i++) if (!laneBusy(i,yTop,yBot)) r.push(i); return r; }
+function spawnTraffic(){
+  const band = [-16*u, 2*u];
+  const free = freeLanes(band[0], band[1]);
+  if (free.length < 2) return; // siempre deja un hueco
+  const lane = pick(free);
+  const r = Math.random();
+  let o;
+  if (r < .5) o = {kind:'car', w:1.8*u, l:4.4*u, v:rnd(48,60), color:pick(CAR_COLORS), type: Math.random()<.3?'mpv':'sedan'};
+  else if (r < .65) o = {kind:'car', w:2.0*u, l:5.3*u, v:rnd(44,52), color:'#ecedea', type:'mpv', rs:.25, re:.92};
+  else if (r < .85) o = {kind:'truck', w:2.5*u, l:rnd(12,14)*u, v:rnd(34,40), color:pick(['#c0392b','#1b4fa0','#e8b63a','#2e7d4f','#e9e7e0'])};
+  else o = {kind:'rig', w:2.25*u, l:(4.4+1.1+4.8)*u, v:rnd(38,44), color:pick(CAR_COLORS)};
+  o.x = laneX(lane) + rnd(-.08,.08)*laneW; o.y = -o.l - 10; o.hit = false;
+  obs.push(o);
+}
+function spawnItem(kind){
+  const free = freeLanes(-8*u, 2*u);
+  if (!free.length) return false;
+  const lane = pick(free);
+  if (kind === 'tok' && Math.random() < .45){
+    for (let k=0;k<3;k++) items.push({kind, x:laneX(lane), y:-30 - k*2.2*u, t:Math.random()*6});
+  } else items.push({kind, x:laneX(lane), y:-30, t:Math.random()*6});
+  return true;
+}
+function spawnDeco(){
+  const left = Math.random() < .5;
+  const s = rnd(.7,1.2)*u;
+  const x = left ? rnd(-s, roadL - u*.9 - s*.6) : rnd(roadR + u*.9 + s*.6, W + s);
+  if ((left && roadL < u*1.3) || (!left && W - roadR < u*1.3)) return;
+  deco.push({x, y:-2*u, s});
+}
+
+/* ---------- Física del jugador ---------- */
+function stepPlayer(dt, v){
+  const prevVx = p.vx;
+  const maxV = u*9.5*rig.agility;
+  const desired = clamp((p.tx - p.x)*6, -maxV, maxV);
+  p.vx += (desired - p.vx) * Math.min(1, dt*7*rig.agility);
+  let push = 0;
+  if (gust.phase === 'blow') push = gust.dir * u * 2.6 * (1.25 - rig.stability*.4);
+  p.x = clamp(p.x + (p.vx + push)*dt, minX(), maxX());
+  p.head = Math.atan2(p.vx + push*.4, v);
+  const Lt = (1.1 + rig.vanL*.55) * u;
+  p.th += (v/Lt) * Math.sin(p.head - p.th) * dt;
+  const ax = (p.vx - prevVx) / Math.max(dt, .001);
+  const K = 22, C = .8 + rig.stability*3;
+  let F = -(ax/u) * .05 * (1.3 - rig.stability);
+  if (gust.phase === 'blow') F += gust.dir * 3.2 * (1.3 - rig.stability);
+  p.swayV += (-K*p.sway - C*p.swayV + F) * dt;
+  p.sway = clamp(p.sway + p.swayV*dt, -.45, .45);
+}
+function trailerAngle(){ return p.th + p.sway; }
+function playerBoxes(){
+  const cl = rig.carL*u, cw = rig.carW*u, db = 1.1*u, vl = rig.vanL*u, vw = rig.vanW*u;
+  const hy = carFrontY + cl, a = trailerAngle();
+  const d = db + vl/2;
+  const cx = p.x - Math.sin(a)*d, cy = hy + Math.cos(a)*d;
+  return [
+    {x:p.x - cw*.45, y:carFrontY + cl*.03, w:cw*.9, h:cl*.94},
+    {x:cx - vw*.45, y:cy - vl*.46, w:vw*.9, h:vl*.92}
+  ];
+}
+const overlap = (a,b) => a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y;
+
+/* ---------- Bucle ---------- */
+let last = performance.now();
+function frame(now){
+  const dt = Math.min(.05, (now - last)/1000); last = now;
+  if (state !== 'paused') update(dt);
+  render();
+  requestAnimationFrame(frame);
+}
+function update(dt){
+  time += dt;
+  const playing = state === 'play';
+  if (state === 'menu'){
+    speed = 72;
+    p.tx = laneX(1) + Math.sin(time*.55)*laneW*.95;
+  } else if (playing){
+    penalty = Math.max(0, penalty - dt*10);
+    speed = 72 + Math.min(38, km*1.6) - penalty;
+  } else if (state === 'over'){
+    speed = Math.max(0, speed - dt*60);
+  }
+  const f = u*.85/3.6;
+  const v = speed * f;
+  dashOff = (dashOff + v*dt) % (12*u);
+  fieldOff = (fieldOff + v*dt) % (3*u);
+  railOff = (railOff + v*dt) % (2*u);
+
+  stepPlayer(dt, Math.max(v, 40));
+
+  // decorado
+  decoAcc += v*dt;
+  while (decoAcc > 2.2*u){ decoAcc -= 2.2*u; if (Math.random() < .55) spawnDeco(); }
+  for (const d of deco) d.y += v*dt;
+  deco = deco.filter(d => d.y < H + 3*u);
+  for (const k of posts) k.y += v*dt;
+  posts = posts.filter(k => k.y < H + 2*u);
+
+  if (playing){
+    const dk = speed*dt/3600*6.5;
+    km += dk;
+    fuel -= dk * 8.2 / rig.tank;
+    if (Math.floor(km) > lastKmInt){ lastKmInt = Math.floor(km); posts.push({n: lastKmInt + 1, y: -2*u}); }
+
+    graceT -= dt;
+    spawnT -= dt;
+    if (spawnT <= 0 && graceT <= 0){
+      spawnTraffic();
+      if (km > 3 && Math.random() < Math.min(.4, km*.025)) spawnTraffic();
+      spawnT = clamp(1.25 - km*.03, .5, 1.25) * rnd(.8,1.2);
+    }
+    if (km >= nextFuelKm){ if (spawnItem('fuel')) nextFuelKm = km + rnd(.9,1.35); }
+    if (km >= nextTokKm){ if (spawnItem('tok')) nextTokKm = km + rnd(.22,.45); }
+
+    // viento
+    gust.t -= dt;
+    if (gust.phase === 'idle' && gust.t <= 0 && km > .6){
+      gust.phase = 'warn'; gust.t = 1.1; gust.dir = Math.random() < .5 ? -1 : 1;
+      const g = $('gust'); g.textContent = gust.dir > 0 ? 'Viento lateral  →' : '←  Viento lateral'; g.hidden = false;
+    } else if (gust.phase === 'warn' && gust.t <= 0){
+      gust.phase = 'blow'; gust.t = rnd(1.4,2.2); sfx.gust();
+    } else if (gust.phase === 'blow' && gust.t <= 0){
+      gust.phase = 'idle'; gust.t = rnd(6,11) - Math.min(3, km*.1); $('gust').hidden = true;
+    }
+  }
+  if (gust.phase === 'blow' && Math.random() < dt*30){
+    streaks.push({x: gust.dir>0 ? -40 : W+40, y: rnd(0,H), len: rnd(30,90), vx: gust.dir*rnd(700,1100)});
+  }
+  for (const s of streaks) s.x += s.vx*dt;
+  streaks = streaks.filter(s => s.x > -120 && s.x < W+120);
+
+  for (const o of obs) o.y += (speed - o.v) * f * dt;
+  obs = obs.filter(o => o.y < H + 2*u);
+  for (const it of items){ it.y += v*dt; it.t += dt; }
+  items = items.filter(it => it.y < H + 2*u && !it.got);
+
+  invuln = Math.max(0, invuln - dt);
+  shake = Math.max(0, shake - dt);
+
+  if (playing){
+    const boxes = playerBoxes();
+    for (const it of items){
+      const s = (it.kind === 'fuel' ? 1.2 : 1.4)*u;
+      const ib = {x: it.x - s/2, y: it.y - s/2, w: s, h: s};
+      if (boxes.some(b => overlap(b, ib))){
+        it.got = true;
+        if (it.kind === 'fuel'){ fuel = Math.min(100, fuel + 32); pops.push({x:it.x, y:it.y, text:'+ GASOIL', c:'#7fe39a', t:0}); sfx.fuel(); }
+        else { tokens++; pops.push({x:it.x, y:it.y, text:'+25', c:'#f6f7f2', t:0}); sfx.token(); }
+      }
+    }
+    if (invuln <= 0){
+      for (const o of obs){
+        if (o.hit) continue;
+        const ob = {x:o.x - o.w*.46, y:o.y + o.l*.02, w:o.w*.92, h:o.l*.96};
+        const which = boxes.findIndex(b => overlap(b, ob));
+        if (which >= 0){
+          o.hit = true; hits++; invuln = 1.6; shake = .45; penalty = 18;
+          o.x += (o.x < p.x ? -1 : 1) * laneW*.25; o.v -= 8;
+          p.swayV += (o.x < p.x ? 1 : -1) * 2.5;
+          pops.push({x:p.x, y:carFrontY - 10, text: which ? '¡Caravana!' : '¡Golpe!', c:'#ff8a7a', t:0});
+          sfx.hit(); renderDents();
+          if (navigator.vibrate) try { navigator.vibrate(120); } catch(e){}
+          break;
+        }
+      }
+    }
+    if (hits >= 3) return gameOver('hits');
+    if (fuel <= 0){ fuel = 0; return gameOver('fuel'); }
+    updateHud();
+  }
+  for (const pp of pops) { pp.t += dt; pp.y -= 40*dt; }
+  pops = pops.filter(pp => pp.t < 1);
+}
+
+function render(){
+  ctx.save();
+  ctx.clearRect(0,0,W,H);
+  if (shake > 0 && !reduceMotion) ctx.translate(rnd(-1,1)*shake*14, rnd(-1,1)*shake*10);
+  // campo
+  ctx.fillStyle = '#c99f45'; ctx.fillRect(-20,-20,W+40,H+40);
+  ctx.fillStyle = 'rgba(120,85,25,.13)';
+  for (let y = -3*u + fieldOff; y < H + 3*u; y += 3*u) ctx.fillRect(-20, y, W+40, u*1.2);
+  // arcenes y calzada
+  ctx.fillStyle = '#8e8a80'; ctx.fillRect(roadL - u*.7, -20, (roadR-roadL) + u*1.4, H+40);
+  ctx.fillStyle = '#34373c'; ctx.fillRect(roadL - u*.5, -20, (roadR-roadL) + u, H+40);
+  ctx.fillStyle = 'rgba(255,255,255,.025)';
+  for (let i=0;i<LANES;i++) ctx.fillRect(laneX(i) - laneW*.18, -20, laneW*.36, H+40);
+  // líneas
+  ctx.fillStyle = '#eceee8';
+  const lw = Math.max(2, u*.14);
+  ctx.fillRect(roadL - lw/2, -20, lw, H+40); ctx.fillRect(roadR - lw/2, -20, lw, H+40);
+  for (let i=1;i<LANES;i++){
+    const x = roadL + laneW*i - lw/2;
+    for (let y = -12*u + dashOff; y < H; y += 12*u) ctx.fillRect(x, y, lw, 4.5*u);
+  }
+  // biondas
+  ctx.fillStyle = '#b9bcbf';
+  ctx.fillRect(roadL - u*.85, -20, 3, H+40); ctx.fillRect(roadR + u*.85 - 3, -20, 3, H+40);
+  ctx.fillStyle = '#6d7075';
+  for (let y = -2*u + railOff; y < H; y += 2*u){ ctx.fillRect(roadL - u*.9, y, 5, 5); ctx.fillRect(roadR + u*.9 - 5, y, 5, 5); }
+  // hitos
+  for (const k of posts) if (W - roadR > u*1.5) drawKmPost(ctx, roadR + u*1.6, k.y, k.n);
+  // objetos
+  for (const it of items){
+    if (it.kind === 'fuel') drawFuel(ctx, it.x, it.y, 1.15*u);
+    else drawToken(ctx, it.x, it.y, .62*u, it.t);
+  }
+  for (const o of obs){
+    ctx.save(); ctx.translate(o.x, o.y);
+    if (o.kind === 'truck') drawTruck(ctx, o.w, o.l, o.color);
+    else if (o.kind === 'rig'){
+      const cl = 4.4*u;
+      ctx.save(); ctx.translate(0, cl); drawCaravan(ctx, o.w, 4.8*u, 1.1*u, {a:'#8a8f96', b:'#2d5d9f'}); ctx.restore();
+      drawCar(ctx, 1.8*u, cl, o.color, {type:'sedan'});
+    } else drawCar(ctx, o.w, o.l, o.color, {type:o.type, rs:o.rs, re:o.re});
+    ctx.restore();
+  }
+  // jugador
+  const blink = invuln > 0 && Math.floor(invuln*10) % 2 === 0;
+  ctx.globalAlpha = blink ? .45 : 1;
+  const cl = rig.carL*u, hy = carFrontY + cl;
+  ctx.save(); ctx.translate(p.x, hy); ctx.rotate(trailerAngle()); drawCaravan(ctx, rig.vanW*u, rig.vanL*u, 1.1*u, rig.scheme); ctx.restore();
+  ctx.save(); ctx.translate(p.x, hy); ctx.rotate(p.head); ctx.translate(0, -cl); drawCar(ctx, rig.carW*u, cl, rig.carColor, rig); ctx.restore();
+  ctx.globalAlpha = 1;
+  // olivos encima de todo lo del arcén
+  for (const d of deco) drawOlive(ctx, d.x, d.y, d.s);
+  // viento
+  ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+  ctx.beginPath();
+  for (const s of streaks){ ctx.moveTo(s.x, s.y); ctx.lineTo(s.x - Math.sign(s.vx)*s.len, s.y); }
+  ctx.stroke();
+  // textos flotantes
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = `700 ${Math.round(u*.85)}px 'Barlow Condensed', sans-serif`;
+  for (const pp of pops){
+    ctx.globalAlpha = 1 - pp.t;
+    ctx.fillStyle = 'rgba(11,23,48,.7)'; ctx.fillText(pp.text, pp.x+1.5, pp.y+1.5);
+    ctx.fillStyle = pp.c; ctx.fillText(pp.text, pp.x, pp.y);
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+/* ---------- HUD ---------- */
+const fmtKm = n => n.toFixed(1).replace('.', ',');
+function updateHud(){
+  $('km').textContent = fmtKm(km);
+  $('tokens').textContent = tokens === 1 ? '1 ficha' : tokens + ' fichas';
+  $('fuelBar').style.transform = `scaleX(${clamp(fuel/100,0,1)})`;
+  $('gauge').classList.toggle('low', fuel < 25);
+  $('speed').textContent = Math.round(speed) + ' km/h';
+}
+function renderDents(){
+  [...$('dents').children].forEach((b,i) => b.classList.toggle('off', i < hits));
+}
+const score = () => Math.floor(km*100) + tokens*25;
+function setBest(){ const t = 'Récord: ' + best.toLocaleString('es-ES') + ' puntos'; $('bestMenu').textContent = t; $('bestOver').textContent = t; }
+
+/* ---------- Estados ---------- */
+function startGame(){
+  audioOn();
+  resetRun();
+  state = 'play';
+  $('menu').hidden = true; $('over').hidden = true; $('paused').hidden = true; $('hud').hidden = false;
+  updateHud();
+}
+function gameOver(reason){
+  state = 'over';
+  $('gust').hidden = true; gust.phase = 'idle';
+  const s = score(), rec = s > best;
+  if (rec){ best = s; try { localStorage.setItem('rutacaravanera.best', String(best)); } catch(e){} }
+  setBest();
+  if (reason === 'fuel'){
+    $('overTitle').textContent = '¡Sin gasoil!';
+    $('overText').textContent = 'Te has quedado en el arcén con la caravana a cuestas.';
+  } else {
+    $('overTitle').textContent = 'Llamando a la grúa';
+    $('overText').textContent = 'Tres golpes son demasiados. El seguro se encarga del resto.';
+  }
+  $('rKm').textContent = fmtKm(km); $('rTok').textContent = tokens; $('rPts').textContent = s.toLocaleString('es-ES');
+  $('newRec').hidden = !rec;
+  sfx.over();
+  setTimeout(() => { $('hud').hidden = true; $('over').hidden = false; $('again').focus({preventScroll:true}); }, 700);
+}
+function toMenu(){
+  state = 'menu';
+  obs = []; items = []; pops = []; streaks = []; invuln = 0; gust.phase='idle';
+  $('hud').hidden = true; $('over').hidden = true; $('paused').hidden = true; $('gust').hidden = true; $('menu').hidden = false;
+}
+function pauseGame(){ if (state !== 'play') return; state = 'paused'; $('paused').hidden = false; }
+function resumeGame(){ if (state !== 'paused') return; state = 'play'; $('paused').hidden = true; last = performance.now(); }
+
+/* ---------- Selección ---------- */
+function drawPreviews(){
+  document.querySelectorAll('canvas[data-preview]').forEach(c => {
+    const r = RIGS[c.dataset.preview];
+    const w = c.clientWidth, h = c.clientHeight; if (!w || !h) return;
+    const d = Math.min(window.devicePixelRatio || 1, 3);
+    c.width = Math.round(w*d); c.height = Math.round(h*d);
+    const x = c.getContext('2d'); x.setTransform(d,0,0,d,0,0); x.clearRect(0,0,w,h);
+    x.fillStyle = '#34373c'; x.fillRect(0, h*.12, w, h*.76);
+    x.fillStyle = 'rgba(236,238,232,.8)'; for (let i=4;i<w;i+=22) x.fillRect(i, h*.12, 10, 2), x.fillRect(i+8, h*.88-2, 10, 2);
+    const total = r.carL + 1.1 + r.vanL;
+    const su = Math.min((w-14)/total, (h*.7)/r.vanW);
+    const saved = u; u = su;
+    const hx = 7 + r.vanL*su + 1.1*su;
+    x.save(); x.translate(hx, h/2); x.rotate(Math.PI/2);
+    x.save(); drawCaravan(x, r.vanW*su, r.vanL*su, 1.1*su, r.scheme); x.restore();
+    x.save(); x.translate(0, -r.carL*su); drawCar(x, r.carW*su, r.carL*su, r.carColor, r); x.restore();
+    x.restore();
+    u = saved;
+  });
+}
+function renderStats(){
+  document.querySelectorAll('[data-stats]').forEach(el => {
+    const s = RIGS[el.dataset.stats].stats;
+    el.innerHTML = Object.entries(s).map(([k,v]) => `<span>${k}</span><span class="bar"><i style="width:${Math.round(v*100)}%"></i></span>`).join('');
+  });
+}
+function selectRig(id){
+  rigId = id; rig = RIGS[id];
+  try { localStorage.setItem('rutacaravanera.rig', id); } catch(e){}
+  document.querySelectorAll('.pick').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.rig === id)));
+  if (p){ p.sway = 0; p.swayV = 0; p.x = clamp(p.x, minX(), maxX()); }
+}
+
+/* ---------- Entrada ---------- */
+const app = $('app');
+function setTarget(e){
+  if (state !== 'play') return;
+  const r = cv.getBoundingClientRect();
+  p.tx = clamp(e.clientX - r.left, minX(), maxX());
+}
+app.addEventListener('pointerdown', e => { if (e.target === cv) { setTarget(e); } }, {passive:true});
+app.addEventListener('pointermove', e => { if (e.target === cv && (e.pointerType !== 'mouse' || e.buttons)) setTarget(e); }, {passive:true});
+document.addEventListener('touchmove', e => { if (state === 'play') e.preventDefault(); }, {passive:false});
+window.addEventListener('keydown', e => {
+  if (state === 'play'){
+    if (e.key === 'ArrowLeft' || e.key === 'a') p.tx = clamp(p.tx - laneW, minX(), maxX());
+    if (e.key === 'ArrowRight' || e.key === 'd') p.tx = clamp(p.tx + laneW, minX(), maxX());
+    if (e.key === 'p' || e.key === 'Escape') pauseGame();
+  } else if (state === 'paused' && (e.key === 'p' || e.key === 'Escape')) resumeGame();
+});
+document.querySelectorAll('.pick').forEach(b => b.addEventListener('click', () => selectRig(b.dataset.rig)));
+$('go').addEventListener('click', startGame);
+$('again').addEventListener('click', startGame);
+$('change').addEventListener('click', toMenu);
+$('pause').addEventListener('click', pauseGame);
+$('resume').addEventListener('click', resumeGame);
+$('quit').addEventListener('click', toMenu);
+document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); });
+window.addEventListener('resize', resize);
+
+/* ---------- Arranque ---------- */
+renderStats();
+p = newPlayer();
+resize();
+p = newPlayer();
+selectRig(rigId);
+setBest();
+for (let i=0;i<14;i++){ spawnDeco(); deco[deco.length-1] && (deco[deco.length-1].y = rnd(0,H)); }
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(drawPreviews);
+requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
+})();
+</script>
+
+</body>
+</html>
