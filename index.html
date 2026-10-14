@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
-/* Layout: full-bleed top-down autovía on canvas; HUD styled as Spanish blue motorway signs; menus as sign panels over the moving road */
+/* Layout: full-bleed top-down road on canvas; HUD styled as Spanish blue road signs; menus as sign panels over the moving road */
 html{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 *,*::before,*::after{box-sizing:inherit}
 [hidden]{display:none!important}
@@ -20,6 +20,7 @@ html{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bott
   --paper:#f6f7f2;
   --ochre:#e8b63a;
   --alert:#e2483d;
+  --camp:#6b4a2b;
   --ink:#0b1730;
   --muted:#b9c6e0;
   --display:'Bungee','Arial Black',Impact,sans-serif;
@@ -37,9 +38,11 @@ body{font-family:var(--body);font-size:17px;-webkit-user-select:none;user-select
 .sign{background:var(--sign);color:var(--paper);border-radius:7px;padding:5px 10px 6px;
   box-shadow:inset 0 0 0 2px var(--sign),inset 0 0 0 3.5px var(--paper),0 3px 0 rgba(0,0,0,.25);
   display:flex;flex-direction:column;justify-content:center;min-width:0}
+#hud.camp .sign{background:var(--camp);box-shadow:inset 0 0 0 2px var(--camp),inset 0 0 0 3.5px var(--paper),0 3px 0 rgba(0,0,0,.25)}
+#hud.camp .gauge{background:#4a321c}
 .sign .lbl{font-weight:600;font-size:11px;letter-spacing:.12em;text-transform:uppercase;opacity:.85}
 .sign .val{font-weight:700;font-size:24px;line-height:1;font-variant-numeric:tabular-nums}
-.sign .sub{font-weight:500;font-size:13px;opacity:.9;font-variant-numeric:tabular-nums}
+.sign .sub{font-weight:500;font-size:13px;opacity:.9;font-variant-numeric:tabular-nums;white-space:nowrap}
 #sKm{flex:0 0 auto}
 #sFuel{flex:1 1 auto}
 .gauge{height:10px;border-radius:5px;background:var(--sign-deep);box-shadow:inset 0 0 0 1.5px rgba(246,247,242,.6);overflow:hidden;margin:4px 0 3px}
@@ -50,11 +53,20 @@ body{font-family:var(--body);font-size:17px;-webkit-user-select:none;user-select
 .dents b{width:11px;height:11px;border-radius:50%;background:var(--paper)}
 .dents b.off{background:transparent;box-shadow:inset 0 0 0 2px var(--alert)}
 #pause{pointer-events:auto;flex:0 0 auto;width:44px;border:0;cursor:pointer;font:700 15px var(--body);letter-spacing:.06em}
-#pause:focus-visible,.pick:focus-visible,.btn:focus-visible{outline:3px solid var(--ochre);outline-offset:2px}
+#pause:focus-visible,.pick:focus-visible,.btn:focus-visible,.lvl:focus-visible,#brake:focus-visible{outline:3px solid var(--ochre);outline-offset:2px}
 
 #gust{position:absolute;left:50%;top:84px;transform:translateX(-50%);background:var(--ochre);color:var(--ink);
   font:700 16px var(--body);letter-spacing:.1em;text-transform:uppercase;padding:6px 14px;border-radius:6px;
   box-shadow:inset 0 0 0 2px var(--ochre),inset 0 0 0 3.5px var(--ink);white-space:nowrap;pointer-events:none}
+
+/* Pedal de freno */
+#brake{position:absolute;bottom:14px;left:max(16px,env(safe-area-inset-left,0px));width:84px;height:96px;border:0;cursor:pointer;
+  border-radius:16px 16px 22px 22px;background:#2a2d31;color:var(--paper);touch-action:none;
+  box-shadow:inset 0 0 0 3px #4a4e55,0 5px 0 #121417;font:700 15px var(--body);letter-spacing:.14em;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;transition:transform .06s}
+#brake i{display:block;width:52px;height:6px;border-radius:3px;background:#4a4e55;box-shadow:0 12px 0 #4a4e55,0 24px 0 #4a4e55;margin-bottom:22px}
+#brake.on{transform:translateY(4px);box-shadow:inset 0 0 0 3px var(--alert),0 1px 0 #121417;color:#ffb3a8}
+#brake.on i{background:var(--alert);box-shadow:0 12px 0 var(--alert),0 24px 0 var(--alert)}
 
 /* Overlays */
 .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;overflow-y:auto;
@@ -63,19 +75,24 @@ body{font-family:var(--body);font-size:17px;-webkit-user-select:none;user-select
 .panel{width:100%;max-width:440px;margin:auto;background:var(--sign);border-radius:14px;padding:18px 16px 16px;
   box-shadow:inset 0 0 0 3px var(--sign),inset 0 0 0 5.5px var(--paper),0 10px 30px rgba(0,0,0,.4);
   display:flex;flex-direction:column;gap:14px}
+.panel.camp{background:var(--camp);box-shadow:inset 0 0 0 3px var(--camp),inset 0 0 0 5.5px var(--paper),0 10px 30px rgba(0,0,0,.4)}
 .tag{display:inline-flex;align-self:flex-start;gap:8px;align-items:center;font-weight:700;font-size:13px;letter-spacing:.14em;text-transform:uppercase}
 .tag .road{background:var(--alert);color:var(--paper);padding:1px 7px;border-radius:4px;letter-spacing:.04em}
 h1{font-family:var(--display);font-weight:400;font-size:clamp(34px,11vw,48px);line-height:.95;margin:0;text-wrap:balance;letter-spacing:.01em}
 h1 em{font-style:normal;color:var(--ochre)}
 h2{font-family:var(--display);font-weight:400;font-size:30px;line-height:1;margin:0;text-wrap:balance}
 .lede{margin:0;font-size:18px;line-height:1.3;color:var(--paper)}
-.picks{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.pick{all:unset;box-sizing:border-box;cursor:pointer;border-radius:10px;padding:10px 9px 10px;background:var(--sign-deep);
+.sec{font-weight:700;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 -6px}
+.picks,.levels{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pick,.lvl{all:unset;box-sizing:border-box;cursor:pointer;border-radius:10px;padding:10px 9px;background:var(--sign-deep);
   display:flex;flex-direction:column;gap:6px;min-width:0;box-shadow:inset 0 0 0 2px rgba(246,247,242,.18);transition:box-shadow .15s,transform .15s}
-.pick[aria-pressed="true"]{box-shadow:inset 0 0 0 3px var(--ochre);transform:translateY(-2px)}
+.pick[aria-pressed="true"],.lvl[aria-pressed="true"]{box-shadow:inset 0 0 0 3px var(--ochre);transform:translateY(-2px)}
 .pick canvas{width:100%;height:58px;display:block}
-.pick .car{font-weight:700;font-size:17px;line-height:1.05}
-.pick .van{font-weight:500;font-size:13.5px;line-height:1.15;color:var(--muted)}
+.pick .car,.lvl .nm{font-weight:700;font-size:17px;line-height:1.05}
+.pick .van,.lvl .ds{font-weight:500;font-size:13.5px;line-height:1.15;color:var(--muted)}
+.lvl .badge{align-self:flex-start;font-weight:700;font-size:12px;letter-spacing:.06em;padding:1px 7px;border-radius:4px}
+.lvl[data-level="autovia"] .badge{background:var(--alert);color:var(--paper)}
+.lvl[data-level="camping"] .badge{background:var(--camp);color:var(--paper);box-shadow:inset 0 0 0 1.5px var(--paper)}
 .stats{display:grid;grid-template-columns:auto 1fr;gap:3px 7px;align-items:center;margin-top:2px}
 .stats span{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .bar{height:6px;border-radius:3px;background:rgba(246,247,242,.15);overflow:hidden}
@@ -90,12 +107,12 @@ h2{font-family:var(--display);font-weight:400;font-size:30px;line-height:1;margi
 .how b{color:var(--paper);font-weight:600}
 .best{margin:0;font-weight:600;font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-variant-numeric:tabular-nums}
 .results{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.results div{background:var(--sign-deep);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:2px}
+.results div{background:rgba(0,0,0,.22);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:2px;min-width:0}
 .results span{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
 .results b{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
 .newrec{color:var(--ochre);font-weight:700;letter-spacing:.1em;text-transform:uppercase;font-size:14px;margin:0}
 .row{display:flex;flex-direction:column;gap:10px}
-@media (prefers-reduced-motion:reduce){.pick,.btn,.gauge i{transition:none}}
+@media (prefers-reduced-motion:reduce){.pick,.btn,.gauge i,.lvl,#brake{transition:none}}
 </style>
 
 </head>
@@ -104,18 +121,32 @@ h2{font-family:var(--display);font-weight:400;font-size:30px;line-height:1;margi
   <canvas id="road" aria-label="Carretera del juego"></canvas>
 
   <div id="hud" hidden>
-    <div class="sign" id="sKm"><span class="lbl">Km</span><span class="val" id="km">0,0</span><span class="sub" id="tokens">0 fichas</span></div>
-    <div class="sign" id="sFuel"><span class="lbl">Gasoil</span><div class="gauge" id="gauge"><i id="fuelBar"></i></div><span class="sub" id="speed">80 km/h</span></div>
+    <div class="sign" id="sKm"><span class="lbl" id="l1">Km</span><span class="val" id="km">0,0</span><span class="sub" id="tokens">0 fichas</span></div>
+    <div class="sign" id="sFuel"><span class="lbl" id="l2">Gasoil</span><div class="gauge" id="gauge"><i id="fuelBar"></i></div><span class="sub" id="speed">80 km/h</span></div>
     <div class="sign" id="sHits"><span class="lbl">Golpes</span><div class="dents" id="dents"><b></b><b></b><b></b></div></div>
     <button class="sign" id="pause" aria-label="Pausa">II</button>
   </div>
   <div id="gust" hidden>Viento lateral</div>
+  <button id="brake" hidden aria-label="Freno, mantener pulsado"><i></i>FRENO</button>
 
   <div class="overlay" id="menu">
     <div class="panel">
       <div class="tag"><span class="road">A-7</span> Dirección camping</div>
       <h1>Ruta<br><em>Caravanera</em></h1>
-      <p class="lede">Elige tu conjunto y llega lo más lejos posible por la autovía sin quedarte tirado.</p>
+      <p class="sec">Pantalla</p>
+      <div class="levels">
+        <button class="lvl" data-level="autovia" aria-pressed="true">
+          <span class="badge">A-7</span>
+          <span class="nm">Autovía</span>
+          <span class="ds">Tráfico, gasoil y rachas de viento. Llega lo más lejos posible.</span>
+        </button>
+        <button class="lvl" data-level="camping" aria-pressed="false">
+          <span class="badge">Camping</span>
+          <span class="nm">Hasta la parcela</span>
+          <span class="ds">Bicis, niños, balones y badenes en el camino de grava.</span>
+        </button>
+      </div>
+      <p class="sec">Conjunto</p>
       <div class="picks">
         <button class="pick" data-rig="c5" aria-pressed="true">
           <canvas data-preview="c5"></canvas>
@@ -133,18 +164,18 @@ h2{font-family:var(--display);font-weight:400;font-size:30px;line-height:1;margi
         </button>
       </div>
       <button class="btn" id="go">Arrancar</button>
-      <p class="how"><b>Arrastra el dedo</b> para cambiar de carril. Coge <b>bidones de gasoil</b> y <b>fichas de camping</b>. Ojo con las <b>rachas de viento</b>: la caravana se mueve y también puede golpear.</p>
+      <p class="how" id="howText"></p>
       <p class="best" id="bestMenu">Récord: 0 puntos</p>
     </div>
   </div>
 
   <div class="overlay" id="over" hidden>
-    <div class="panel">
-      <div class="tag"><span class="road">A-7</span> <span id="overTag">Fin del viaje</span></div>
+    <div class="panel" id="overPanel">
+      <div class="tag"><span class="road" id="overBadge">A-7</span> <span id="overTag">Fin del viaje</span></div>
       <h2 id="overTitle">¡Sin gasoil!</h2>
       <p class="lede" id="overText">Te has quedado en el arcén.</p>
       <div class="results">
-        <div><span>Km</span><b id="rKm">0</b></div>
+        <div><span id="rL1">Km</span><b id="rKm">0</b></div>
         <div><span>Fichas</span><b id="rTok">0</b></div>
         <div><span>Puntos</span><b id="rPts">0</b></div>
       </div>
@@ -152,7 +183,7 @@ h2{font-family:var(--display);font-weight:400;font-size:30px;line-height:1;margi
       <p class="best" id="bestOver">Récord: 0 puntos</p>
       <div class="row">
         <button class="btn" id="again">Otra vez</button>
-        <button class="btn ghost" id="change">Cambiar de conjunto</button>
+        <button class="btn ghost" id="change">Cambiar pantalla o conjunto</button>
       </div>
     </div>
   </div>
@@ -177,6 +208,10 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const rnd = (a,b) => a + Math.random()*(b-a);
 const pick = arr => arr[(Math.random()*arr.length)|0];
 const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+const store = {
+  get(k, d){ try { const v = localStorage.getItem(k); return v === null ? d : v; } catch(e){ return d; } },
+  set(k, v){ try { localStorage.setItem(k, String(v)); } catch(e){} }
+};
 
 /* ---------- Conjuntos ---------- */
 const RIGS = {
@@ -193,24 +228,35 @@ const RIGS = {
     stats:{Manejo:.74, Estabilidad:.62, Depósito:.95}
   }
 };
-let rigId = 'c5';
-try { const s = localStorage.getItem('rutacaravanera.rig'); if (s && RIGS[s]) rigId = s; } catch(e){}
+let rigId = store.get('rutacaravanera.rig', 'c5'); if (!RIGS[rigId]) rigId = 'c5';
 let rig = RIGS[rigId];
+
+/* ---------- Pantallas ---------- */
+const LEVELS = {
+  autovia: { lanes:3, scrollMul:1, best:'rutacaravanera.best',
+    how:'<b>Arrastra el dedo</b> para cambiar de carril y <b>mantén FRENO</b> para dejar pasar el tráfico. Coge <b>bidones de gasoil</b> y <b>fichas de camping</b>. Las <b>rachas de viento</b> hacen culear la caravana.' },
+  camping: { lanes:2, scrollMul:1.6, goal:600, best:'rutacaravanera.best.camping',
+    how:'<b>Arrastra el dedo</b> para esquivar bicis, niños y coches mal aparcados. En los <b>badenes</b> y cuando cruce alguien, <b>mantén FRENO</b>. Llega a la <b>parcela</b> rápido y sin golpes.' }
+};
+let levelId = store.get('rutacaravanera.level', 'autovia'); if (!LEVELS[levelId]) levelId = 'autovia';
+let L = LEVELS[levelId];
+let lanes = L.lanes;
+const isCamp = () => levelId === 'camping';
 
 /* ---------- Canvas ---------- */
 const cv = $('road'), ctx = cv.getContext('2d');
 let W=0, H=0, DPR=1, u=28, roadL=0, roadR=0, laneW=0, carFrontY=200;
-const LANES = 3;
 function resize(){
   const r = cv.getBoundingClientRect();
   DPR = Math.min(window.devicePixelRatio || 1, 3);
   W = r.width; H = r.height;
   cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR);
   ctx.setTransform(DPR,0,0,DPR,0,0);
-  const roadW = Math.min(W - 2*Math.max(30, W*.085), 480);
+  const base = Math.min(W - 2*Math.max(30, W*.085), 480);
+  u = Math.min(base/3/3.5, H/23);
+  const roadW = isCamp() ? Math.min(7.6*u, W - 2*Math.max(30, W*.12)) : base;
   roadL = (W - roadW)/2; roadR = roadL + roadW;
-  laneW = roadW / LANES;
-  u = Math.min(laneW/3.5, H/23);
+  laneW = roadW / lanes;
   carFrontY = Math.max(118, H*.29);
   if (p) { p.x = clamp(p.x, minX(), maxX()); p.tx = clamp(p.tx, minX(), maxX()); }
   drawPreviews();
@@ -244,22 +290,17 @@ function drawCar(c, w, l, color, o){
   g.addColorStop(0, shade(color,-.32)); g.addColorStop(.22, color);
   g.addColorStop(.55, shade(color,.2)); g.addColorStop(1, shade(color,-.32));
   c.fillStyle = g; rr(c,-w/2,0,w,l,w*.3); c.fill();
-  // capó: línea central
   c.strokeStyle = 'rgba(0,0,0,.12)'; c.lineWidth = 1;
   c.beginPath(); c.moveTo(-w*.22,l*.05); c.lineTo(-w*.28,l*.25); c.moveTo(w*.22,l*.05); c.lineTo(w*.28,l*.25); c.stroke();
-  // faros
-  c.fillStyle = '#fff4c8';
+  c.fillStyle = o.brakeLights ? '#ffffff' : '#fff4c8';
   rr(c,-w*.43, l*.012, w*.25, l*.035, 3); c.fill();
   rr(c, w*.18, l*.012, w*.25, l*.035, 3); c.fill();
-  // lunas laterales
   c.fillStyle = '#1b2430';
   rr(c,-w*.43, l*rs, w*.86, l*(re-rs), w*.16); c.fill();
-  // parabrisas
   const ws = rs - (type==='mpv' ? .1 : .13);
   c.beginPath();
   c.moveTo(-w*.42, l*ws); c.quadraticCurveTo(0, l*(ws-.03), w*.42, l*ws);
   c.lineTo(w*.37, l*rs+2); c.lineTo(-w*.37, l*rs+2); c.closePath(); c.fill();
-  // techo
   c.fillStyle = shade(color,.12);
   rr(c,-w*.36, l*rs, w*.72, l*(re-rs), w*.14); c.fill();
   if (type === 'mpv'){
@@ -267,43 +308,39 @@ function drawCar(c, w, l, color, o){
     c.beginPath(); c.moveTo(-w*.3,l*(rs+.04)); c.lineTo(-w*.3,l*(re-.03));
     c.moveTo(w*.3,l*(rs+.04)); c.lineTo(w*.3,l*(re-.03)); c.stroke();
   }
-  // luna trasera
   c.fillStyle = '#1b2430';
   const rw = type==='mpv' ? .05 : .09;
   c.beginPath(); c.moveTo(-w*.37,l*re-1); c.lineTo(w*.37,l*re-1); c.lineTo(w*.4,l*(re+rw)); c.lineTo(-w*.4,l*(re+rw)); c.closePath(); c.fill();
-  // pilotos
   c.fillStyle = '#c62f2a';
   rr(c,-w*.46, l*.96, w*.22, l*.03, 2); c.fill();
   rr(c, w*.24, l*.96, w*.22, l*.03, 2); c.fill();
 }
 // Caravana: enganche en (0,0), lanza hasta db, cuerpo de db a db+L
-function drawCaravan(c, Wd, L, db, sc){
+function drawCaravan(c, Wd, L, db, sc, braking){
   c.strokeStyle = '#2a2d31'; c.lineWidth = Math.max(2, Wd*.05); c.lineCap = 'round';
   c.beginPath(); c.moveTo(0,2); c.lineTo(-Wd*.28, db+2); c.moveTo(0,2); c.lineTo(Wd*.28, db+2); c.stroke();
   c.fillStyle = '#e7e7e1'; rr(c,-Wd*.2, db*.42, Wd*.4, db*.5, 3); c.fill();
   c.fillStyle = 'rgba(0,0,0,.28)'; rr(c,-Wd/2+Wd*.08, db+L*.03, Wd, L, Wd*.12); c.fill();
   c.fillStyle = '#f4f4f0'; rr(c,-Wd/2, db, Wd, L, Wd*.12); c.fill();
-  // decoración lateral
   c.fillStyle = sc.a;
   c.fillRect(-Wd/2, db+L*.2, Wd*.06, L*.68); c.fillRect(Wd/2-Wd*.06, db+L*.2, Wd*.06, L*.68);
   c.fillStyle = sc.b;
   c.fillRect(-Wd/2+Wd*.065, db+L*.32, Wd*.025, L*.44); c.fillRect(Wd/2-Wd*.09, db+L*.32, Wd*.025, L*.44);
-  // ventana delantera
   c.fillStyle = '#26323d'; rr(c,-Wd*.37, db+L*.012, Wd*.74, L*.045, 4); c.fill();
-  // juntas del techo
   c.strokeStyle = 'rgba(0,0,0,.08)'; c.lineWidth = 1;
   c.beginPath();
   for (let k=1;k<4;k++){ const y = db + L*k/4; c.moveTo(-Wd*.44,y); c.lineTo(Wd*.44,y); }
   c.stroke();
-  // claraboya
   c.fillStyle = '#d9dcd7'; rr(c,-Wd*.27, db+L*.12, Wd*.54, L*.14, 5); c.fill();
   c.fillStyle = '#7ea4ba'; rr(c,-Wd*.22, db+L*.135, Wd*.44, L*.11, 4); c.fill();
-  // aireadores
   c.fillStyle = '#dcdcd6';
   rr(c,-Wd*.12, db+L*.52, Wd*.24, L*.06, 3); c.fill();
   rr(c,-Wd*.1, db+L*.77, Wd*.2, L*.05, 3); c.fill();
-  // pilotos
-  c.fillStyle = '#c62f2a';
+  if (braking){
+    c.fillStyle = 'rgba(255,60,40,.35)';
+    c.beginPath(); c.ellipse(-Wd*.37, db+L, Wd*.22, L*.05, 0, 0, Math.PI*2); c.ellipse(Wd*.37, db+L, Wd*.22, L*.05, 0, 0, Math.PI*2); c.fill();
+  }
+  c.fillStyle = braking ? '#ff4433' : '#c62f2a';
   c.fillRect(-Wd*.46, db+L-L*.025, Wd*.18, L*.018); c.fillRect(Wd*.28, db+L-L*.025, Wd*.18, L*.018);
 }
 function drawTruck(c, w, l, cab){
@@ -350,6 +387,19 @@ function drawOlive(c, x, y, s){
   c.fillStyle = '#7e8f3c';
   c.beginPath(); c.arc(x-s*.2,y-s*.15,s*.3,0,Math.PI*2); c.arc(x+s*.3,y-s*.25,s*.22,0,Math.PI*2); c.fill();
 }
+function drawPine(c, x, y, s){
+  c.fillStyle = 'rgba(20,40,10,.3)'; c.beginPath(); c.arc(x+s*.3, y+s*.35, s, 0, Math.PI*2); c.fill();
+  c.fillStyle = '#2f5a2a'; c.beginPath(); c.arc(x, y, s, 0, Math.PI*2); c.fill();
+  c.fillStyle = '#3f7436';
+  for (let k=0;k<6;k++){ const a = k*Math.PI/3; c.beginPath(); c.arc(x+Math.cos(a)*s*.45, y+Math.sin(a)*s*.45, s*.38, 0, Math.PI*2); c.fill(); }
+  c.fillStyle = '#5a8f45'; c.beginPath(); c.arc(x-s*.15, y-s*.2, s*.3, 0, Math.PI*2); c.fill();
+}
+function drawTent(c, x, y, s, col){
+  c.fillStyle = 'rgba(0,0,0,.25)'; rr(c, x-s/2+3, y-s*.6+4, s, s*1.2, 4); c.fill();
+  c.fillStyle = col; rr(c, x-s/2, y-s*.6, s, s*1.2, 4); c.fill();
+  c.fillStyle = shade(col,-.25); c.fillRect(x, y-s*.6, s/2, s*1.2);
+  c.strokeStyle = shade(col,.35); c.lineWidth = 2; c.beginPath(); c.moveTo(x, y-s*.6); c.lineTo(x, y+s*.6); c.stroke();
+}
 function drawKmPost(c, x, y, n){
   const w = Math.max(16, u*.8), h = w*1.5;
   c.fillStyle = 'rgba(0,0,0,.3)'; c.fillRect(x-w/2+3, y+3, w, h);
@@ -357,6 +407,60 @@ function drawKmPost(c, x, y, n){
   c.fillStyle = '#c8323a'; c.fillRect(x-w/2, y, w, h*.28);
   c.fillStyle = '#0b1730'; c.font = `700 ${Math.round(w*.62)}px 'Barlow Condensed', sans-serif`;
   c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(String(n), x, y+h*.64);
+}
+function drawBumpSign(c, x, y){
+  const s = Math.max(20, u*.95);
+  c.fillStyle = 'rgba(0,0,0,.3)'; c.beginPath(); c.moveTo(x+3, y-s*.55+3); c.lineTo(x+s*.55+3, y+s*.45+3); c.lineTo(x-s*.55+3, y+s*.45+3); c.closePath(); c.fill();
+  c.fillStyle = '#d62f2a'; c.beginPath(); c.moveTo(x, y-s*.55); c.lineTo(x+s*.55, y+s*.45); c.lineTo(x-s*.55, y+s*.45); c.closePath(); c.fill();
+  c.fillStyle = '#f6f7f2'; c.beginPath(); c.moveTo(x, y-s*.32); c.lineTo(x+s*.36, y+s*.32); c.lineTo(x-s*.36, y+s*.32); c.closePath(); c.fill();
+  c.fillStyle = '#0b1730'; c.beginPath(); c.ellipse(x, y+s*.25, s*.2, s*.12, 0, Math.PI, 0); c.fill(); c.fillRect(x-s*.3, y+s*.24, s*.6, s*.04);
+}
+function drawParcelSign(c, x, y, n){
+  const w = Math.max(42, u*1.9), h = w*.75;
+  c.fillStyle = '#5a3b20'; c.fillRect(x-3, y, 6, h*1.4);
+  c.fillStyle = 'rgba(0,0,0,.3)'; rr(c, x-w/2+3, y-h+3, w, h, 5); c.fill();
+  c.fillStyle = '#7a5230'; rr(c, x-w/2, y-h, w, h, 5); c.fill();
+  c.strokeStyle = '#f6f7f2'; c.lineWidth = 2; rr(c, x-w/2+3, y-h+3, w-6, h-6, 3); c.stroke();
+  c.fillStyle = '#f6f7f2'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.font = `700 ${Math.round(h*.6)}px 'Barlow Condensed', sans-serif`; c.fillText(String(n), x, y-h/2+1);
+}
+function drawKid(c, x, y, s, shirt, hair, t, dir){
+  const sw = Math.sin(t*12)*s*.18;
+  c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(x+2, y+3, s*.55, s*.4, 0, 0, Math.PI*2); c.fill();
+  c.fillStyle = '#e2b38c';
+  c.beginPath(); c.arc(x-s*.5, y+sw*dir, s*.13, 0, Math.PI*2); c.arc(x+s*.5, y-sw*dir, s*.13, 0, Math.PI*2); c.fill();
+  c.fillStyle = shirt; c.beginPath(); c.ellipse(x, y, s*.45, s*.28, 0, 0, Math.PI*2); c.fill();
+  c.fillStyle = hair; c.beginPath(); c.arc(x, y, s*.22, 0, Math.PI*2); c.fill();
+}
+function drawBike(c, x, y, s, col, oncoming){
+  c.save(); c.translate(x, y); if (oncoming) c.rotate(Math.PI);
+  c.fillStyle = 'rgba(0,0,0,.25)'; rr(c, -s*.12+3, -s*.95+3, s*.24, s*1.9, 4); c.fill();
+  c.fillStyle = '#1d1f22';
+  rr(c, -s*.06, -s*.95, s*.12, s*.55, 3); c.fill();
+  rr(c, -s*.06, s*.4, s*.12, s*.55, 3); c.fill();
+  c.strokeStyle = '#4a4e55'; c.lineWidth = Math.max(2, s*.06);
+  c.beginPath(); c.moveTo(0, -s*.6); c.lineTo(0, s*.5); c.moveTo(-s*.3, -s*.6); c.lineTo(s*.3, -s*.6); c.stroke();
+  c.fillStyle = col; c.beginPath(); c.ellipse(0, -s*.05, s*.32, s*.18, 0, 0, Math.PI*2); c.fill();
+  c.fillStyle = '#e2b38c'; c.beginPath(); c.arc(-s*.28, -s*.45, s*.07, 0, Math.PI*2); c.arc(s*.28, -s*.45, s*.07, 0, Math.PI*2); c.fill();
+  c.fillStyle = shade(col,.3); c.beginPath(); c.arc(0, -s*.18, s*.15, 0, Math.PI*2); c.fill();
+  c.restore();
+}
+function drawBall(c, x, y, r, t){
+  c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.arc(x+2, y+3, r, 0, Math.PI*2); c.fill();
+  const cols = ['#e2483d','#f6f7f2','#1b4fa0','#e8b63a','#f6f7f2','#2e9a49'];
+  for (let k=0;k<6;k++){
+    c.fillStyle = cols[k]; c.beginPath(); c.moveTo(x,y);
+    c.arc(x, y, r, t*6 + k*Math.PI/3, t*6 + (k+1)*Math.PI/3); c.closePath(); c.fill();
+  }
+  c.fillStyle = '#f6f7f2'; c.beginPath(); c.arc(x, y, r*.22, 0, Math.PI*2); c.fill();
+}
+function drawBump(c, x, y, w, h){
+  c.save(); c.beginPath(); c.rect(x, y, w, h); c.clip();
+  c.fillStyle = '#e8b63a'; c.fillRect(x, y, w, h);
+  c.fillStyle = '#1d1f22';
+  for (let i = -h; i < w; i += h*2){ c.beginPath(); c.moveTo(x+i, y+h); c.lineTo(x+i+h, y); c.lineTo(x+i+h*2, y); c.lineTo(x+i+h, y+h); c.closePath(); c.fill(); }
+  c.restore();
+  c.fillStyle = 'rgba(0,0,0,.2)'; c.fillRect(x, y+h, w, 3);
 }
 
 /* ---------- Estado ---------- */
@@ -366,22 +470,26 @@ let obs = [], items = [], deco = [], posts = [], pops = [], streaks = [];
 let speed = 72, km = 0, fuel = 100, tokens = 0, hits = 0, invuln = 0, shake = 0, penalty = 0;
 let spawnT = 0, nextFuelKm = 1, nextTokKm = .3, lastKmInt = 0, decoAcc = 0;
 let dashOff = 0, fieldOff = 0, railOff = 0, time = 0, graceT = 0;
+let dist = 0, runT = 0, nextEventM = 40, finishShown = false, parcelNo = 47;
+let braking = false;
 let gust = {phase:'idle', t:8, dir:1};
-let best = 0;
-try { best = parseInt(localStorage.getItem('rutacaravanera.best') || '0', 10) || 0; } catch(e){}
 
 function newPlayer(){
-  const x = laneX(1);
-  return {x, tx:x, vx:0, head:0, th:0, sway:0, swayV:0};
+  const x = laneX(lanes - 1);
+  return {x, tx:x, vx:0, head:0, th:0, sway:0, swayV:0, back:0};
 }
 function resetRun(){
   p = newPlayer();
   obs = []; items = []; pops = []; streaks = []; posts = [];
-  speed = 72; km = 0; fuel = 100; tokens = 0; hits = 0; invuln = 0; shake = 0; penalty = 0;
+  km = 0; fuel = 100; tokens = 0; hits = 0; invuln = 0; shake = 0; penalty = 0;
   spawnT = 1.6; nextFuelKm = .9; nextTokKm = .25; lastKmInt = 0; graceT = 1.6;
+  dist = 0; runT = 0; nextEventM = 35; finishShown = false; parcelNo = 20 + ((Math.random()*80)|0);
+  speed = isCamp() ? 20 : 72;
   gust = {phase:'idle', t: rnd(7,11), dir:1};
+  braking = false; $('brake').classList.remove('on');
   renderDents(); $('gust').hidden = true;
 }
+const frontY = () => carFrontY + (p ? p.back : 0);
 
 /* ---------- Audio ---------- */
 let actx = null;
@@ -403,20 +511,23 @@ const sfx = {
   fuel(){ beep(330,.18,'triangle',.08,330); },
   hit(){ beep(160,.35,'sawtooth',.09,-120); },
   gust(){ beep(220,.5,'sine',.04,-80); },
-  over(){ beep(392,.2,'triangle',.07); setTimeout(()=>beep(311,.2,'triangle',.07),180); setTimeout(()=>beep(233,.45,'triangle',.07),360); }
+  bump(){ beep(90,.18,'sine',.12,-40); },
+  bell(){ beep(1760,.12,'triangle',.05); setTimeout(()=>beep(1760,.12,'triangle',.05),140); },
+  over(){ beep(392,.2,'triangle',.07); setTimeout(()=>beep(311,.2,'triangle',.07),180); setTimeout(()=>beep(233,.45,'triangle',.07),360); },
+  win(){ [523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,.18,'triangle',.07),i*120)); }
 };
 
-/* ---------- Spawns ---------- */
+/* ---------- Autovía: tráfico ---------- */
 const CAR_COLORS = ['#c0392b','#2d5d9f','#e9e7e0','#1f2024','#5f7a3a','#d98c2b','#6c6f76','#8a2f4f'];
+const TRAFFIC_V = 46; // todo el tráfico va a la misma velocidad: los huecos no se cierran solos
+const laneOf = x => clamp(Math.floor((x - roadL) / laneW), 0, lanes-1);
 function laneBusy(lane, yTop, yBot){
   const cx = laneX(lane);
   for (const o of obs){ if (Math.abs(o.x-cx) < laneW*.6 && o.y < yBot && o.y+o.l > yTop) return true; }
   for (const it of items){ if (Math.abs(it.x-cx) < laneW*.6 && it.y < yBot && it.y > yTop) return true; }
   return false;
 }
-function freeLanes(yTop, yBot){ const r=[]; for (let i=0;i<LANES;i++) if (!laneBusy(i,yTop,yBot)) r.push(i); return r; }
-const TRAFFIC_V = 46; // todo el tráfico va a la misma velocidad: los huecos no se cierran solos
-const laneOf = x => clamp(Math.floor((x - roadL) / laneW), 0, LANES-1);
+function freeLanes(yTop, yBot){ const r=[]; for (let i=0;i<lanes;i++) if (!laneBusy(i,yTop,yBot)) r.push(i); return r; }
 function spawnTraffic(){
   const r = Math.random();
   let o;
@@ -426,11 +537,10 @@ function spawnTraffic(){
   else o = {kind:'rig', w:2.25*u, l:(4.4+1.1+4.8)*u, color:pick(CAR_COLORS)};
   o.v = TRAFFIC_V; o.hit = false;
   const top = -o.l - 10, bot = -10;
-  // Margen vertical: tu conjunto entero más espacio para cambiar de carril
   const gap = (rig.carL + 1.1 + rig.vanL + 10) * u;
   const maxLanes = km < 2.5 ? 1 : 2;
   const ok = [];
-  for (let lane = 0; lane < LANES; lane++){
+  for (let lane = 0; lane < lanes; lane++){
     if (laneBusy(lane, top - 4*u, bot + 4*u)) continue;
     const used = new Set([lane]);
     for (const q of obs){ if (q.y < bot + gap && q.y + q.l > top - gap) used.add(laneOf(q.x)); }
@@ -450,41 +560,90 @@ function spawnItem(kind){
   } else items.push({kind, x:laneX(lane), y:-30, t:Math.random()*6});
   return true;
 }
-function spawnDeco(){
+
+/* ---------- Camping: sucesos ---------- */
+const SHIRTS = ['#e2483d','#1b4fa0','#e8b63a','#2e9a49','#d26fb0','#f6f7f2','#ff8a3d'];
+const HAIRS = ['#3a2a1a','#6b4a2b','#c9a14a','#1d1d1d'];
+function campEvent(){
+  const r = Math.random();
+  const prog = dist / L.goal;
+  if (r < .2){ // bici de frente por el carril izquierdo
+    obs.push({kind:'bike', x:laneX(0) + rnd(-.1,.1)*laneW, bx:0, y:-3*u, w:.55*u, l:1.9*u, vy:u*rnd(2.2,3.4), oncoming:true, col:pick(SHIRTS), t:0});
+  } else if (r < .3){ // bici en tu sentido, más lenta
+    obs.push({kind:'bike', x:laneX(lanes-1) + rnd(-.1,.1)*laneW, bx:0, y:-3*u, w:.55*u, l:1.9*u, vy:-u*rnd(.6,1.2), oncoming:false, col:pick(SHIRTS), t:0});
+  } else if (r < .5){ // niño que cruza
+    const fromLeft = Math.random() < .5;
+    obs.push({kind:'kid', x: fromLeft ? roadL - 1.4*u : roadR + 1.4*u, y:-1.5*u, w:.8*u, l:.8*u, dir: fromLeft?1:-1, vx:u*rnd(3,3.8), trig:carFrontY - u*rnd(6,10), col:pick(SHIRTS), hair:pick(HAIRS), t:0});
+  } else if (r < .62){ // balón y niño detrás
+    const fromLeft = Math.random() < .5, trig = carFrontY - u*rnd(7,10);
+    obs.push({kind:'ball', x: fromLeft ? roadL - 1*u : roadR + 1*u, y:-1.5*u, w:.6*u, l:.6*u, dir: fromLeft?1:-1, vx:u*6.5, trig, t:0});
+    obs.push({kind:'kid', x: fromLeft ? roadL - 2.4*u : roadR + 2.4*u, y:-1.5*u, w:.8*u, l:.8*u, dir: fromLeft?1:-1, vx:u*3.6, trig, col:pick(SHIRTS), hair:pick(HAIRS), t:0});
+  } else if (r < .8){ // badén
+    obs.push({kind:'bump', x:(roadL+roadR)/2, y:-1*u, w:roadR-roadL, l:.7*u, done:false});
+    deco.push({type:'bumpSign', x: roadR + Math.min(1.3*u, (W-roadR)*.5), y:-8*u});
+  } else if (r < .92){ // coche mal aparcado
+    const right = Math.random() < .6;
+    const w = 1.8*u;
+    obs.push({kind:'parked', x: right ? roadR - w*.3 : roadL + w*.3, y:-5*u, w, l:4.4*u, color:pick(CAR_COLORS), type:'sedan'});
+  } else {
+    const lane = (Math.random()*lanes)|0;
+    for (let k=0;k<3;k++) items.push({kind:'tok', x:laneX(lane), y:-30 - k*2.2*u, t:Math.random()*6});
+  }
+  if (Math.random() < .35) { const lane = (Math.random()*lanes)|0; items.push({kind:'tok', x:laneX(lane), y:-14*u, t:0}); }
+  nextEventM = dist + rnd(28, 46) - prog*10;
+}
+
+/* ---------- Decorado ---------- */
+function spawnDeco(y0){
   const left = Math.random() < .5;
-  const s = rnd(.7,1.2)*u;
-  const x = left ? rnd(-s, roadL - u*.9 - s*.6) : rnd(roadR + u*.9 + s*.6, W + s);
-  if ((left && roadL < u*1.3) || (!left && W - roadR < u*1.3)) return;
-  deco.push({x, y:-2*u, s});
+  const vergeW = left ? roadL : W - roadR;
+  if (vergeW < u*1.3) return;
+  const y = y0 === undefined ? -3*u : y0;
+  if (isCamp()){
+    const r = Math.random();
+    const edge = 1.0*u;
+    const x = left ? rnd(u*.5, roadL - edge - u*.6) : rnd(roadR + edge + u*.6, W - u*.5);
+    if (r < .45) deco.push({type:'pine', x, y, s:rnd(.9,1.4)*u});
+    else if (r < .8) deco.push({type:'tent', x, y, s:rnd(1.6,2.2)*u, col:pick(['#e8b63a','#2e7d4f','#1b4fa0','#e2483d','#8a5fb0'])});
+    else deco.push({type:'van', x: left ? roadL - edge - 1.3*u : roadR + edge + 1.3*u, y, sc:{a:pick(['#7d848c','#ab8b57','#3a6ea5']), b:'#5b4732'}});
+  } else {
+    const s = rnd(.7,1.2)*u;
+    const x = left ? rnd(-s, roadL - u*.9 - s*.6) : rnd(roadR + u*.9 + s*.6, W + s);
+    deco.push({type:'olive', x, y, s});
+  }
 }
 
 /* ---------- Física del jugador ---------- */
 function stepPlayer(dt, v){
   const prevVx = p.vx;
-  const maxV = u*9.5*rig.agility;
+  const vRef = Math.max(v, u*14);
+  const maxV = u*(isCamp() ? 7.5 : 9.5)*rig.agility;
   const desired = clamp((p.tx - p.x)*6, -maxV, maxV);
   p.vx += (desired - p.vx) * Math.min(1, dt*7*rig.agility);
   let push = 0;
   if (gust.phase === 'blow') push = gust.dir * u * 2.6 * (1.25 - rig.stability*.4);
   p.x = clamp(p.x + (p.vx + push)*dt, minX(), maxX());
-  p.head = Math.atan2(p.vx + push*.4, v);
+  p.head = Math.atan2(p.vx + push*.4, vRef);
   const Lt = (1.1 + rig.vanL*.55) * u;
-  p.th += (v/Lt) * Math.sin(p.head - p.th) * dt;
+  p.th += (vRef/Lt) * Math.sin(p.head - p.th) * dt;
   const ax = (p.vx - prevVx) / Math.max(dt, .001);
   const K = 22, C = .8 + rig.stability*3;
   let F = -(ax/u) * .05 * (1.3 - rig.stability);
   if (gust.phase === 'blow') F += gust.dir * 3.2 * (1.3 - rig.stability);
   p.swayV += (-K*p.sway - C*p.swayV + F) * dt;
   p.sway = clamp(p.sway + p.swayV*dt, -.45, .45);
+  // al frenar, el conjunto se queda un poco atrás en pantalla
+  const backTarget = (state === 'play' && braking) ? 2.4*u : 0;
+  p.back += (backTarget - p.back) * Math.min(1, dt*(braking ? 2.5 : 1.6));
 }
 function trailerAngle(){ return p.th + p.sway; }
 function playerBoxes(){
   const cl = rig.carL*u, cw = rig.carW*u, db = 1.1*u, vl = rig.vanL*u, vw = rig.vanW*u;
-  const hy = carFrontY + cl, a = trailerAngle();
+  const fy = frontY(), hy = fy + cl, a = trailerAngle();
   const d = db + vl/2;
   const cx = p.x - Math.sin(a)*d, cy = hy + Math.cos(a)*d;
   return [
-    {x:p.x - cw*.45, y:carFrontY + cl*.03, w:cw*.9, h:cl*.94},
+    {x:p.x - cw*.45, y:fy + cl*.03, w:cw*.9, h:cl*.94},
     {x:cx - vw*.45, y:cy - vl*.46, w:vw*.9, h:vl*.92}
   ];
 }
@@ -498,42 +657,52 @@ function frame(now){
   render();
   requestAnimationFrame(frame);
 }
+function approach(target, up, down, dt){ speed += clamp(target - speed, -down*dt, up*dt); }
+function registerHit(text, pushDir){
+  hits++; invuln = 1.6; shake = .45; penalty = isCamp() ? 8 : 18;
+  p.swayV += pushDir * 2.5;
+  pops.push({x:p.x, y:frontY() - 10, text, c:'#ff8a7a', t:0});
+  sfx.hit(); renderDents();
+  if (navigator.vibrate) try { navigator.vibrate(120); } catch(e){}
+}
 function update(dt){
   time += dt;
   const playing = state === 'play';
+  const camp = isCamp();
+  // velocidad
   if (state === 'menu'){
-    speed = 72;
-    p.tx = laneX(1) + Math.sin(time*.55)*laneW*.95;
+    approach(camp ? 20 : 72, 30, 30, dt);
+    p.tx = (roadL+roadR)/2 + Math.sin(time*.55)*(roadR-roadL)*.3;
   } else if (playing){
-    penalty = Math.max(0, penalty - dt*10);
-    speed = 72 + Math.min(38, km*1.6) - penalty;
-  } else if (state === 'over'){
-    speed = Math.max(0, speed - dt*60);
+    penalty = Math.max(0, penalty - dt*(camp ? 4 : 10));
+    if (camp) approach(braking ? 4 : 21 - penalty, 7, 26, dt);
+    else approach(braking ? 38 : 72 + Math.min(38, km*1.6) - penalty, 18, 55, dt);
+  } else {
+    approach(0, 0, camp ? 25 : 60, dt);
   }
   const f = u*.85/3.6;
-  const v = speed * f;
+  const v = speed * f * L.scrollMul;
   dashOff = (dashOff + v*dt) % (12*u);
-  fieldOff = (fieldOff + v*dt) % (3*u);
+  fieldOff = (fieldOff + v*dt) % (camp ? 9*u : 3*u);
   railOff = (railOff + v*dt) % (2*u);
 
-  stepPlayer(dt, Math.max(v, 40));
+  stepPlayer(dt, v);
 
   // decorado
   decoAcc += v*dt;
-  while (decoAcc > 2.2*u){ decoAcc -= 2.2*u; if (Math.random() < .55) spawnDeco(); }
+  const step = camp ? 1.8*u : 2.2*u;
+  while (decoAcc > step){ decoAcc -= step; if (Math.random() < (camp ? .7 : .55)) spawnDeco(); }
   for (const d of deco) d.y += v*dt;
-  deco = deco.filter(d => d.y < H + 3*u);
+  deco = deco.filter(d => d.y < H + 4*u);
   for (const k of posts) k.y += v*dt;
   posts = posts.filter(k => k.y < H + 2*u);
 
-  if (playing){
+  if (playing && !camp){
     const dk = speed*dt/3600*6.5;
     km += dk;
     fuel -= dk * 8.2 / rig.tank;
     if (Math.floor(km) > lastKmInt){ lastKmInt = Math.floor(km); posts.push({n: lastKmInt + 1, y: -2*u}); }
-
-    graceT -= dt;
-    spawnT -= dt;
+    graceT -= dt; spawnT -= dt;
     if (spawnT <= 0 && graceT <= 0){
       spawnTraffic();
       if (km > 3 && Math.random() < Math.min(.35, km*.02)) spawnTraffic();
@@ -541,8 +710,6 @@ function update(dt){
     }
     if (km >= nextFuelKm){ if (spawnItem('fuel')) nextFuelKm = km + rnd(.9,1.35); }
     if (km >= nextTokKm){ if (spawnItem('tok')) nextTokKm = km + rnd(.22,.45); }
-
-    // viento
     gust.t -= dt;
     if (gust.phase === 'idle' && gust.t <= 0 && km > .6){
       gust.phase = 'warn'; gust.t = 1.1; gust.dir = Math.random() < .5 ? -1 : 1;
@@ -553,14 +720,34 @@ function update(dt){
       gust.phase = 'idle'; gust.t = rnd(6,11) - Math.min(3, km*.1); $('gust').hidden = true;
     }
   }
+  if (playing && camp){
+    runT += dt;
+    dist += speed/3.6 * dt * 1.6;
+    if (dist >= nextEventM && dist < L.goal - 60) campEvent();
+    if (!finishShown && dist >= L.goal - 45){
+      finishShown = true;
+      deco.push({type:'parcel', x: roadR + Math.min(1.6*u, (W-roadR)*.55), y:-3*u, n: parcelNo});
+    }
+    if (dist >= L.goal) return winCamp();
+  }
   if (gust.phase === 'blow' && Math.random() < dt*30){
     streaks.push({x: gust.dir>0 ? -40 : W+40, y: rnd(0,H), len: rnd(30,90), vx: gust.dir*rnd(700,1100)});
   }
   for (const s of streaks) s.x += s.vx*dt;
   streaks = streaks.filter(s => s.x > -120 && s.x < W+120);
 
-  for (const o of obs) o.y += (speed - o.v) * f * dt;
-  obs = obs.filter(o => o.y < H + 2*u);
+  // obstáculos
+  for (const o of obs){
+    if (o.kind === 'car' || o.kind === 'truck' || o.kind === 'rig'){ o.y += (speed - o.v) * f * dt; continue; }
+    o.y += v*dt + (o.vy || 0)*dt;
+    o.t = (o.t || 0) + dt;
+    if (o.kind === 'bike'){ o.bx = Math.sin(o.t*2.2)*u*.18; }
+    if ((o.kind === 'kid' || o.kind === 'ball') && o.y > o.trig){
+      o.x += o.dir * o.vx * dt;
+      if (o.kind === 'kid' && !o.bell && o.y > -u && o.y < H*.25){ o.bell = true; }
+    }
+  }
+  obs = obs.filter(o => o.y < H + 3*u && o.y > -60*u && o.x > -8*u && o.x < W + 8*u);
   for (const it of items){ it.y += v*dt; it.t += dt; }
   items = items.filter(it => it.y < H + 2*u && !it.got);
 
@@ -578,69 +765,113 @@ function update(dt){
         else { tokens++; pops.push({x:it.x, y:it.y, text:'+25', c:'#f6f7f2', t:0}); sfx.token(); }
       }
     }
+    // badenes: se juzgan al pasar el morro
+    for (const o of obs){
+      if (o.kind !== 'bump' || o.done) continue;
+      if (o.y + o.l > frontY() + rig.carL*u*.15){
+        o.done = true;
+        if (speed > 11 && invuln <= 0){ registerHit('¡Badén a tope!', Math.random()<.5?-1:1); p.swayV += 3; }
+        else { pops.push({x:p.x, y:frontY() - 10, text:'Despacito', c:'#bff0c8', t:0}); sfx.bump(); }
+      }
+    }
     if (invuln <= 0){
       for (const o of obs){
-        if (o.hit) continue;
-        const ob = {x:o.x - o.w*.46, y:o.y + o.l*.02, w:o.w*.92, h:o.l*.96};
+        if (o.hit || o.kind === 'bump') continue;
+        let ob;
+        if (o.kind === 'kid' || o.kind === 'ball') ob = {x:o.x - o.w/2, y:o.y - o.l/2, w:o.w, h:o.l};
+        else if (o.kind === 'bike') ob = {x:o.x + (o.bx||0) - o.w/2, y:o.y - o.l/2, w:o.w, h:o.l};
+        else ob = {x:o.x - o.w*.46, y:o.y + o.l*.02, w:o.w*.92, h:o.l*.96};
         const which = boxes.findIndex(b => overlap(b, ob));
-        if (which >= 0){
-          o.hit = true; hits++; invuln = 1.6; shake = .45; penalty = 18;
-          o.x += (o.x < p.x ? -1 : 1) * laneW*.15;
-          p.swayV += (o.x < p.x ? 1 : -1) * 2.5;
-          pops.push({x:p.x, y:carFrontY - 10, text: which ? '¡Caravana!' : '¡Golpe!', c:'#ff8a7a', t:0});
-          sfx.hit(); renderDents();
-          if (navigator.vibrate) try { navigator.vibrate(120); } catch(e){}
-          break;
-        }
+        if (which < 0) continue;
+        o.hit = true;
+        const dir = o.x < p.x ? 1 : -1;
+        let msg = which ? '¡Caravana!' : '¡Golpe!';
+        if (o.kind === 'kid'){ msg = '¡Cuidado con el crío!'; o.dir = -dir; o.vx = u*6; o.trig = -1e9; }
+        else if (o.kind === 'ball'){ msg = '¡El balón!'; o.dir = -dir; o.vx = u*8; }
+        else if (o.kind === 'bike'){ msg = '¡Ring ring!'; o.x -= dir*laneW*.4; sfx.bell(); }
+        else if (o.kind !== 'parked'){ o.x -= dir * laneW*.15; }
+        registerHit(msg, dir);
+        break;
       }
     }
     if (hits >= 3) return gameOver('hits');
-    if (fuel <= 0){ fuel = 0; return gameOver('fuel'); }
+    if (!camp && fuel <= 0){ fuel = 0; return gameOver('fuel'); }
     updateHud();
   }
   for (const pp of pops) { pp.t += dt; pp.y -= 40*dt; }
-  pops = pops.filter(pp => pp.t < 1);
+  pops = pops.filter(pp => pp.t < 1.1);
 }
 
-function render(){
-  ctx.save();
-  ctx.clearRect(0,0,W,H);
-  if (shake > 0 && !reduceMotion) ctx.translate(rnd(-1,1)*shake*14, rnd(-1,1)*shake*10);
-  // campo
+function renderGround(){
+  if (isCamp()){
+    ctx.fillStyle = '#7da34c'; ctx.fillRect(-20,-20,W+40,H+40);
+    // parcelas: setos perpendiculares a ambos lados
+    ctx.fillStyle = '#4f7a33';
+    for (let y = -9*u + fieldOff; y < H + 9*u; y += 9*u){
+      ctx.fillRect(-20, y, roadL - u*.4 + 20, u*.55);
+      ctx.fillRect(roadR + u*.4, y, W - roadR + 20, u*.55);
+    }
+    // camino de grava
+    ctx.fillStyle = '#cdb98f'; ctx.fillRect(roadL - u*.35, -20, (roadR-roadL) + u*.7, H+40);
+    ctx.fillStyle = 'rgba(120,95,55,.18)';
+    for (let i=0;i<lanes;i++){
+      const cx = laneX(i);
+      ctx.fillRect(cx - u*.95, -20, u*.4, H+40); ctx.fillRect(cx + u*.55, -20, u*.4, H+40);
+    }
+    ctx.fillStyle = 'rgba(255,255,255,.18)';
+    for (let y = -3*u + (dashOff % (3*u)); y < H; y += 3*u){
+      ctx.fillRect(roadL + u*.6, y, 3, 3); ctx.fillRect(roadL + (roadR-roadL)*.47, y + u*1.3, 3, 3); ctx.fillRect(roadR - u*.9, y + u*.7, 3, 3);
+    }
+    // bordillos de seto
+    ctx.fillStyle = '#3f6a2a';
+    ctx.fillRect(roadL - u*.75, -20, u*.4, H+40); ctx.fillRect(roadR + u*.35, -20, u*.4, H+40);
+    return;
+  }
   ctx.fillStyle = '#c99f45'; ctx.fillRect(-20,-20,W+40,H+40);
   ctx.fillStyle = 'rgba(120,85,25,.13)';
   for (let y = -3*u + fieldOff; y < H + 3*u; y += 3*u) ctx.fillRect(-20, y, W+40, u*1.2);
-  // arcenes y calzada
   ctx.fillStyle = '#8e8a80'; ctx.fillRect(roadL - u*.7, -20, (roadR-roadL) + u*1.4, H+40);
   ctx.fillStyle = '#34373c'; ctx.fillRect(roadL - u*.5, -20, (roadR-roadL) + u, H+40);
   ctx.fillStyle = 'rgba(255,255,255,.025)';
-  for (let i=0;i<LANES;i++) ctx.fillRect(laneX(i) - laneW*.18, -20, laneW*.36, H+40);
-  // líneas
+  for (let i=0;i<lanes;i++) ctx.fillRect(laneX(i) - laneW*.18, -20, laneW*.36, H+40);
   ctx.fillStyle = '#eceee8';
   const lw = Math.max(2, u*.14);
   ctx.fillRect(roadL - lw/2, -20, lw, H+40); ctx.fillRect(roadR - lw/2, -20, lw, H+40);
-  for (let i=1;i<LANES;i++){
+  for (let i=1;i<lanes;i++){
     const x = roadL + laneW*i - lw/2;
     for (let y = -12*u + dashOff; y < H; y += 12*u) ctx.fillRect(x, y, lw, 4.5*u);
   }
-  // biondas
   ctx.fillStyle = '#b9bcbf';
   ctx.fillRect(roadL - u*.85, -20, 3, H+40); ctx.fillRect(roadR + u*.85 - 3, -20, 3, H+40);
   ctx.fillStyle = '#6d7075';
   for (let y = -2*u + railOff; y < H; y += 2*u){ ctx.fillRect(roadL - u*.9, y, 5, 5); ctx.fillRect(roadR + u*.9 - 5, y, 5, 5); }
-  // hitos
   for (const k of posts) if (W - roadR > u*1.5) drawKmPost(ctx, roadR + u*1.6, k.y, k.n);
-  // objetos
+}
+function render(){
+  ctx.save();
+  ctx.clearRect(0,0,W,H);
+  if (shake > 0 && !reduceMotion) ctx.translate(rnd(-1,1)*shake*14, rnd(-1,1)*shake*10);
+  renderGround();
+  // decorado bajo (caravanas aparcadas y tiendas)
+  for (const d of deco){
+    if (d.type === 'van'){ ctx.save(); ctx.translate(d.x, d.y); drawCaravan(ctx, 2.25*u, 5*u, 1.1*u, d.sc, false); ctx.restore(); }
+    else if (d.type === 'tent') drawTent(ctx, d.x, d.y, d.s, d.col);
+  }
+  for (const o of obs) if (o.kind === 'bump') drawBump(ctx, roadL - u*.35, o.y, (roadR-roadL) + u*.7, o.l);
   for (const it of items){
     if (it.kind === 'fuel') drawFuel(ctx, it.x, it.y, 1.15*u);
     else drawToken(ctx, it.x, it.y, .62*u, it.t);
   }
   for (const o of obs){
+    if (o.kind === 'bump') continue;
+    if (o.kind === 'kid'){ drawKid(ctx, o.x, o.y, o.w, o.col, o.hair, o.y > o.trig ? o.t : 0, o.dir); continue; }
+    if (o.kind === 'ball'){ drawBall(ctx, o.x, o.y, o.w/2, o.y > o.trig ? o.t*o.dir : 0); continue; }
+    if (o.kind === 'bike'){ drawBike(ctx, o.x + o.bx, o.y, o.l, o.col, o.oncoming); continue; }
     ctx.save(); ctx.translate(o.x, o.y);
     if (o.kind === 'truck') drawTruck(ctx, o.w, o.l, o.color);
     else if (o.kind === 'rig'){
       const cl = 4.4*u;
-      ctx.save(); ctx.translate(0, cl); drawCaravan(ctx, o.w, 4.8*u, 1.1*u, {a:'#8a8f96', b:'#2d5d9f'}); ctx.restore();
+      ctx.save(); ctx.translate(0, cl); drawCaravan(ctx, o.w, 4.8*u, 1.1*u, {a:'#8a8f96', b:'#2d5d9f'}, false); ctx.restore();
       drawCar(ctx, 1.8*u, cl, o.color, {type:'sedan'});
     } else drawCar(ctx, o.w, o.l, o.color, {type:o.type, rs:o.rs, re:o.re});
     ctx.restore();
@@ -648,22 +879,26 @@ function render(){
   // jugador
   const blink = invuln > 0 && Math.floor(invuln*10) % 2 === 0;
   ctx.globalAlpha = blink ? .45 : 1;
-  const cl = rig.carL*u, hy = carFrontY + cl;
-  ctx.save(); ctx.translate(p.x, hy); ctx.rotate(trailerAngle()); drawCaravan(ctx, rig.vanW*u, rig.vanL*u, 1.1*u, rig.scheme); ctx.restore();
+  const cl = rig.carL*u, hy = frontY() + cl;
+  const brakeOn = braking && state === 'play';
+  ctx.save(); ctx.translate(p.x, hy); ctx.rotate(trailerAngle()); drawCaravan(ctx, rig.vanW*u, rig.vanL*u, 1.1*u, rig.scheme, brakeOn); ctx.restore();
   ctx.save(); ctx.translate(p.x, hy); ctx.rotate(p.head); ctx.translate(0, -cl); drawCar(ctx, rig.carW*u, cl, rig.carColor, rig); ctx.restore();
   ctx.globalAlpha = 1;
-  // olivos encima de todo lo del arcén
-  for (const d of deco) drawOlive(ctx, d.x, d.y, d.s);
-  // viento
+  // decorado alto
+  for (const d of deco){
+    if (d.type === 'olive') drawOlive(ctx, d.x, d.y, d.s);
+    else if (d.type === 'pine') drawPine(ctx, d.x, d.y, d.s);
+    else if (d.type === 'bumpSign') drawBumpSign(ctx, d.x, d.y);
+    else if (d.type === 'parcel') drawParcelSign(ctx, d.x, d.y, d.n);
+  }
   ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 2; ctx.lineCap = 'round';
   ctx.beginPath();
   for (const s of streaks){ ctx.moveTo(s.x, s.y); ctx.lineTo(s.x - Math.sign(s.vx)*s.len, s.y); }
   ctx.stroke();
-  // textos flotantes
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.font = `700 ${Math.round(u*.85)}px 'Barlow Condensed', sans-serif`;
   for (const pp of pops){
-    ctx.globalAlpha = 1 - pp.t;
+    ctx.globalAlpha = Math.max(0, 1 - pp.t);
     ctx.fillStyle = 'rgba(11,23,48,.7)'; ctx.fillText(pp.text, pp.x+1.5, pp.y+1.5);
     ctx.fillStyle = pp.c; ctx.fillText(pp.text, pp.x, pp.y);
   }
@@ -673,51 +908,93 @@ function render(){
 
 /* ---------- HUD ---------- */
 const fmtKm = n => n.toFixed(1).replace('.', ',');
+const fmtTime = s => { const m = Math.floor(s/60), r = Math.floor(s%60); return m + ':' + String(r).padStart(2,'0'); };
+function setupHud(){
+  const camp = isCamp();
+  $('hud').classList.toggle('camp', camp);
+  $('l1').textContent = camp ? 'Parcela' : 'Km';
+  $('l2').textContent = camp ? 'Recorrido' : 'Gasoil';
+}
 function updateHud(){
-  $('km').textContent = fmtKm(km);
-  $('tokens').textContent = tokens === 1 ? '1 ficha' : tokens + ' fichas';
-  $('fuelBar').style.transform = `scaleX(${clamp(fuel/100,0,1)})`;
-  $('gauge').classList.toggle('low', fuel < 25);
-  $('speed').textContent = Math.round(speed) + ' km/h';
+  const fichas = tokens === 1 ? '1 ficha' : tokens + ' fichas';
+  if (isCamp()){
+    $('km').textContent = parcelNo;
+    $('tokens').textContent = 'Faltan ' + Math.max(0, Math.ceil(L.goal - dist)) + ' m';
+    $('fuelBar').style.transform = `scaleX(${clamp(dist/L.goal,0,1)})`;
+    $('gauge').classList.remove('low');
+    $('speed').textContent = Math.round(speed) + ' km/h · ' + fmtTime(runT);
+  } else {
+    $('km').textContent = fmtKm(km);
+    $('tokens').textContent = fichas;
+    $('fuelBar').style.transform = `scaleX(${clamp(fuel/100,0,1)})`;
+    $('gauge').classList.toggle('low', fuel < 25);
+    $('speed').textContent = Math.round(speed) + ' km/h';
+  }
 }
 function renderDents(){
   [...$('dents').children].forEach((b,i) => b.classList.toggle('off', i < hits));
 }
-const score = () => Math.floor(km*100) + tokens*25;
-function setBest(){ const t = 'Récord: ' + best.toLocaleString('es-ES') + ' puntos'; $('bestMenu').textContent = t; $('bestOver').textContent = t; }
+const getBest = () => parseInt(store.get(L.best, '0'), 10) || 0;
+function setBest(){ const t = 'Récord en ' + (isCamp() ? 'el camping' : 'la autovía') + ': ' + getBest().toLocaleString('es-ES') + ' puntos'; $('bestMenu').textContent = t; $('bestOver').textContent = t; }
 
 /* ---------- Estados ---------- */
+function showPlayUi(on){
+  $('hud').hidden = !on; $('brake').hidden = !on;
+  if (!on){ braking = false; $('brake').classList.remove('on'); }
+}
 function startGame(){
   audioOn();
   resetRun();
   state = 'play';
-  $('menu').hidden = true; $('over').hidden = true; $('paused').hidden = true; $('hud').hidden = false;
+  $('menu').hidden = true; $('over').hidden = true; $('paused').hidden = true;
+  setupHud(); showPlayUi(true);
   updateHud();
 }
-function gameOver(reason){
-  state = 'over';
+function endScreen(opts){
+  state = opts.state;
   $('gust').hidden = true; gust.phase = 'idle';
-  const s = score(), rec = s > best;
-  if (rec){ best = s; try { localStorage.setItem('rutacaravanera.best', String(best)); } catch(e){} }
+  braking = false; $('brake').classList.remove('on');
+  const s = Math.max(0, opts.points), rec = s > getBest();
+  if (rec) store.set(L.best, s);
   setBest();
-  if (reason === 'fuel'){
-    $('overTitle').textContent = '¡Sin gasoil!';
-    $('overText').textContent = 'Te has quedado en el arcén con la caravana a cuestas.';
-  } else {
-    $('overTitle').textContent = 'Llamando a la grúa';
-    $('overText').textContent = 'Tres golpes son demasiados. El seguro se encarga del resto.';
-  }
-  $('rKm').textContent = fmtKm(km); $('rTok').textContent = tokens; $('rPts').textContent = s.toLocaleString('es-ES');
+  $('overPanel').classList.toggle('camp', isCamp());
+  $('overBadge').textContent = isCamp() ? 'Camping' : 'A-7';
+  $('overTag').textContent = opts.tag;
+  $('overTitle').textContent = opts.title;
+  $('overText').textContent = opts.text;
+  $('rL1').textContent = opts.l1; $('rKm').textContent = opts.v1;
+  $('rTok').textContent = tokens; $('rPts').textContent = s.toLocaleString('es-ES');
   $('newRec').hidden = !rec;
+  setTimeout(() => { showPlayUi(false); $('over').hidden = false; $('again').focus({preventScroll:true}); }, 800);
+}
+function gameOver(reason){
   sfx.over();
-  setTimeout(() => { $('hud').hidden = true; $('over').hidden = false; $('again').focus({preventScroll:true}); }, 700);
+  if (isCamp()){
+    endScreen({state:'over', tag:'Viaje interrumpido', title:'Te para el guarda', text:'Tres sustos en el camping son demasiados. Toca ir a recepción a dar explicaciones.',
+      l1:'Recorrido', v1: Math.floor(dist) + ' m', points: tokens*25});
+  } else if (reason === 'fuel'){
+    endScreen({state:'over', tag:'Fin del viaje', title:'¡Sin gasoil!', text:'Te has quedado en el arcén con la caravana a cuestas.',
+      l1:'Km', v1: fmtKm(km), points: Math.floor(km*100) + tokens*25});
+  } else {
+    endScreen({state:'over', tag:'Fin del viaje', title:'Llamando a la grúa', text:'Tres golpes son demasiados. El seguro se encarga del resto.',
+      l1:'Km', v1: fmtKm(km), points: Math.floor(km*100) + tokens*25});
+  }
+}
+function winCamp(){
+  sfx.win();
+  const pts = 500 + Math.max(0, Math.round((100 - runT)*10)) + tokens*25 - hits*150;
+  const titles = ['¡Aparcado y sin un rasguño!', '¡En tu parcela!', '¡Llegaste, por los pelos!'];
+  endScreen({state:'win', tag:'Llegada', title: titles[Math.min(2, hits)],
+    text: `Parcela ${parcelNo} en ${fmtTime(runT)}` + (hits ? ` con ${hits} ${hits === 1 ? 'susto' : 'sustos'}.` : '. Ya puedes sacar el toldo.'),
+    l1:'Tiempo', v1: fmtTime(runT), points: pts});
 }
 function toMenu(){
   state = 'menu';
   obs = []; items = []; pops = []; streaks = []; invuln = 0; gust.phase='idle';
-  $('hud').hidden = true; $('over').hidden = true; $('paused').hidden = true; $('gust').hidden = true; $('menu').hidden = false;
+  showPlayUi(false);
+  $('over').hidden = true; $('paused').hidden = true; $('gust').hidden = true; $('menu').hidden = false;
 }
-function pauseGame(){ if (state !== 'play') return; state = 'paused'; $('paused').hidden = false; }
+function pauseGame(){ if (state !== 'play') return; state = 'paused'; braking = false; $('brake').classList.remove('on'); $('paused').hidden = false; }
 function resumeGame(){ if (state !== 'paused') return; state = 'play'; $('paused').hidden = true; last = performance.now(); }
 
 /* ---------- Selección ---------- */
@@ -735,7 +1012,7 @@ function drawPreviews(){
     const saved = u; u = su;
     const hx = 7 + r.vanL*su + 1.1*su;
     x.save(); x.translate(hx, h/2); x.rotate(Math.PI/2);
-    x.save(); drawCaravan(x, r.vanW*su, r.vanL*su, 1.1*su, r.scheme); x.restore();
+    x.save(); drawCaravan(x, r.vanW*su, r.vanL*su, 1.1*su, r.scheme, false); x.restore();
     x.save(); x.translate(0, -r.carL*su); drawCar(x, r.carW*su, r.carL*su, r.carColor, r); x.restore();
     x.restore();
     u = saved;
@@ -749,9 +1026,20 @@ function renderStats(){
 }
 function selectRig(id){
   rigId = id; rig = RIGS[id];
-  try { localStorage.setItem('rutacaravanera.rig', id); } catch(e){}
+  store.set('rutacaravanera.rig', id);
   document.querySelectorAll('.pick').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.rig === id)));
   if (p){ p.sway = 0; p.swayV = 0; p.x = clamp(p.x, minX(), maxX()); }
+}
+function selectLevel(id){
+  levelId = id; L = LEVELS[id]; lanes = L.lanes;
+  store.set('rutacaravanera.level', id);
+  document.querySelectorAll('.lvl').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.level === id)));
+  $('howText').innerHTML = L.how;
+  obs = []; items = []; posts = []; deco = [];
+  resize();
+  if (p){ p.x = p.tx = (roadL+roadR)/2; p.th = 0; p.sway = 0; }
+  for (let i=0;i<16;i++) spawnDeco(rnd(-2*u, H));
+  setBest();
 }
 
 /* ---------- Entrada ---------- */
@@ -761,17 +1049,25 @@ function setTarget(e){
   const r = cv.getBoundingClientRect();
   p.tx = clamp(e.clientX - r.left, minX(), maxX());
 }
-app.addEventListener('pointerdown', e => { if (e.target === cv) { setTarget(e); } }, {passive:true});
+app.addEventListener('pointerdown', e => { if (e.target === cv) setTarget(e); }, {passive:true});
 app.addEventListener('pointermove', e => { if (e.target === cv && (e.pointerType !== 'mouse' || e.buttons)) setTarget(e); }, {passive:true});
 document.addEventListener('touchmove', e => { if (state === 'play') e.preventDefault(); }, {passive:false});
+const brakeBtn = $('brake');
+const setBrake = on => { braking = on && state === 'play'; brakeBtn.classList.toggle('on', braking); };
+brakeBtn.addEventListener('pointerdown', e => { e.preventDefault(); try { brakeBtn.setPointerCapture(e.pointerId); } catch(_){} setBrake(true); });
+['pointerup','pointercancel','lostpointercapture'].forEach(ev => brakeBtn.addEventListener(ev, () => setBrake(false)));
+brakeBtn.addEventListener('contextmenu', e => e.preventDefault());
 window.addEventListener('keydown', e => {
   if (state === 'play'){
     if (e.key === 'ArrowLeft' || e.key === 'a') p.tx = clamp(p.tx - laneW, minX(), maxX());
     if (e.key === 'ArrowRight' || e.key === 'd') p.tx = clamp(p.tx + laneW, minX(), maxX());
+    if (e.key === 'ArrowDown' || e.key === 's' || e.key === ' '){ e.preventDefault(); setBrake(true); }
     if (e.key === 'p' || e.key === 'Escape') pauseGame();
   } else if (state === 'paused' && (e.key === 'p' || e.key === 'Escape')) resumeGame();
 });
+window.addEventListener('keyup', e => { if (e.key === 'ArrowDown' || e.key === 's' || e.key === ' ') setBrake(false); });
 document.querySelectorAll('.pick').forEach(b => b.addEventListener('click', () => selectRig(b.dataset.rig)));
+document.querySelectorAll('.lvl').forEach(b => b.addEventListener('click', () => selectLevel(b.dataset.level)));
 $('go').addEventListener('click', startGame);
 $('again').addEventListener('click', startGame);
 $('change').addEventListener('click', toMenu);
@@ -783,12 +1079,10 @@ window.addEventListener('resize', resize);
 
 /* ---------- Arranque ---------- */
 renderStats();
-p = newPlayer();
 resize();
 p = newPlayer();
 selectRig(rigId);
-setBest();
-for (let i=0;i<14;i++){ spawnDeco(); deco[deco.length-1] && (deco[deco.length-1].y = rnd(0,H)); }
+selectLevel(levelId);
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(drawPreviews);
 requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
 })();
