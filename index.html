@@ -415,18 +415,30 @@ function laneBusy(lane, yTop, yBot){
   return false;
 }
 function freeLanes(yTop, yBot){ const r=[]; for (let i=0;i<LANES;i++) if (!laneBusy(i,yTop,yBot)) r.push(i); return r; }
+const TRAFFIC_V = 46; // todo el tráfico va a la misma velocidad: los huecos no se cierran solos
+const laneOf = x => clamp(Math.floor((x - roadL) / laneW), 0, LANES-1);
 function spawnTraffic(){
-  const band = [-16*u, 2*u];
-  const free = freeLanes(band[0], band[1]);
-  if (free.length < 2) return; // siempre deja un hueco
-  const lane = pick(free);
   const r = Math.random();
   let o;
-  if (r < .5) o = {kind:'car', w:1.8*u, l:4.4*u, v:rnd(48,60), color:pick(CAR_COLORS), type: Math.random()<.3?'mpv':'sedan'};
-  else if (r < .65) o = {kind:'car', w:2.0*u, l:5.3*u, v:rnd(44,52), color:'#ecedea', type:'mpv', rs:.25, re:.92};
-  else if (r < .85) o = {kind:'truck', w:2.5*u, l:rnd(12,14)*u, v:rnd(34,40), color:pick(['#c0392b','#1b4fa0','#e8b63a','#2e7d4f','#e9e7e0'])};
-  else o = {kind:'rig', w:2.25*u, l:(4.4+1.1+4.8)*u, v:rnd(38,44), color:pick(CAR_COLORS)};
-  o.x = laneX(lane) + rnd(-.08,.08)*laneW; o.y = -o.l - 10; o.hit = false;
+  if (r < .5) o = {kind:'car', w:1.8*u, l:4.4*u, color:pick(CAR_COLORS), type: Math.random()<.3?'mpv':'sedan'};
+  else if (r < .65) o = {kind:'car', w:2.0*u, l:5.3*u, color:'#ecedea', type:'mpv', rs:.25, re:.92};
+  else if (r < .85) o = {kind:'truck', w:2.5*u, l:rnd(11,13)*u, color:pick(['#c0392b','#1b4fa0','#e8b63a','#2e7d4f','#e9e7e0'])};
+  else o = {kind:'rig', w:2.25*u, l:(4.4+1.1+4.8)*u, color:pick(CAR_COLORS)};
+  o.v = TRAFFIC_V; o.hit = false;
+  const top = -o.l - 10, bot = -10;
+  // Margen vertical: tu conjunto entero más espacio para cambiar de carril
+  const gap = (rig.carL + 1.1 + rig.vanL + 10) * u;
+  const maxLanes = km < 2.5 ? 1 : 2;
+  const ok = [];
+  for (let lane = 0; lane < LANES; lane++){
+    if (laneBusy(lane, top - 4*u, bot + 4*u)) continue;
+    const used = new Set([lane]);
+    for (const q of obs){ if (q.y < bot + gap && q.y + q.l > top - gap) used.add(laneOf(q.x)); }
+    if (used.size <= maxLanes) ok.push(lane);
+  }
+  if (!ok.length) return;
+  const lane = pick(ok);
+  o.x = laneX(lane) + rnd(-.05,.05)*laneW; o.y = top;
   obs.push(o);
 }
 function spawnItem(kind){
@@ -524,8 +536,8 @@ function update(dt){
     spawnT -= dt;
     if (spawnT <= 0 && graceT <= 0){
       spawnTraffic();
-      if (km > 3 && Math.random() < Math.min(.4, km*.025)) spawnTraffic();
-      spawnT = clamp(1.25 - km*.03, .5, 1.25) * rnd(.8,1.2);
+      if (km > 3 && Math.random() < Math.min(.35, km*.02)) spawnTraffic();
+      spawnT = clamp(1.3 - km*.025, .6, 1.3) * rnd(.8,1.2);
     }
     if (km >= nextFuelKm){ if (spawnItem('fuel')) nextFuelKm = km + rnd(.9,1.35); }
     if (km >= nextTokKm){ if (spawnItem('tok')) nextTokKm = km + rnd(.22,.45); }
@@ -573,7 +585,7 @@ function update(dt){
         const which = boxes.findIndex(b => overlap(b, ob));
         if (which >= 0){
           o.hit = true; hits++; invuln = 1.6; shake = .45; penalty = 18;
-          o.x += (o.x < p.x ? -1 : 1) * laneW*.25; o.v -= 8;
+          o.x += (o.x < p.x ? -1 : 1) * laneW*.15;
           p.swayV += (o.x < p.x ? 1 : -1) * 2.5;
           pops.push({x:p.x, y:carFrontY - 10, text: which ? '¡Caravana!' : '¡Golpe!', c:'#ff8a7a', t:0});
           sfx.hit(); renderDents();
